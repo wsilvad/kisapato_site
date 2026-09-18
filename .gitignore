@@ -1,0 +1,22 @@
+# dependências
+node_modules/
+node_modules.nosync/
+
+# builds
+dist/
+.next/
+out/
+*.tsbuildinfo
+next-env.d.ts
+
+# Prisma Client gerado
+apps/api/src/generated/
+
+# variáveis de ambiente
+.env
+.env.*
+!.env.example
+
+# logs e sistema
+*.log
+.DS_Store
