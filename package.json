@@ -1,0 +1,27 @@
+{
+  "name": "ki-sapato",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "concurrently -n api,web -c blue,green \"npm:dev:api\" \"npm:dev:web\"",
+    "dev:api": "npm run dev -w @ki-sapato/api",
+    "dev:web": "npm run dev -w @ki-sapato/web",
+    "build": "npm run build -w @ki-sapato/api && npm run build -w @ki-sapato/web",
+    "lint": "npm run lint -w @ki-sapato/web",
+    "typecheck": "npm run typecheck -w @ki-sapato/api && npm run typecheck -w @ki-sapato/web",
+    "db:generate": "npm run prisma:generate -w @ki-sapato/api",
+    "db:migrate": "npm run prisma:migrate -w @ki-sapato/api",
+    "db:deploy": "npm run prisma:deploy -w @ki-sapato/api",
+    "db:seed": "npm run prisma:seed -w @ki-sapato/api",
+    "db:studio": "npm run prisma:studio -w @ki-sapato/api"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.5"
+  }
+}
