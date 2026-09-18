@@ -20,6 +20,10 @@ export interface Product {
   brand: string | null;
   /** Decimal serializado como string pela API (ex.: "249.90") */
   price: string;
+  /** Preço "de" quando o produto está em promoção; ainda não existe na API. */
+  compareAtPrice?: string | null;
+  /** Selo do card; sem valor, só "Promoção" é inferido de compareAtPrice. */
+  badge?: "Lançamento" | "Promoção" | "Destaque";
   images: string[];
   category: Category;
   variants?: ProductVariant[];

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { api } from "@/lib/api";
-import { formatPrice } from "@/lib/format";
+import { formatPrice, installmentText } from "@/lib/format";
 import type { Product } from "@/types/product";
 
 export const dynamic = "force-dynamic";
@@ -30,12 +30,13 @@ export default async function ProdutoPage({ params }: { params: Promise<{ slug: 
   const sizes = [...new Set(product.variants?.map((variant) => variant.size))];
 
   return (
-    <article className="product">
-      <div className="product-image" aria-hidden="true" />
-      <div>
-        <p className="card-category">{product.category.name}</p>
-        <h1>{product.name}</h1>
-        <p className="card-price">{formatPrice(product.price)}</p>
+    <div className="page product">
+      <div className="product-media" aria-hidden="true" />
+      <div className="product-info">
+        <span className="card-brand">{product.brand ?? product.category.name}</span>
+        <h1 className="page-title">{product.name}</h1>
+        <p className="price">{formatPrice(product.price)}</p>
+        <p className="card-installments">{installmentText(product.price)}</p>
         {product.description && <p>{product.description}</p>}
         {sizes.length > 0 && (
           <p>
@@ -43,6 +44,6 @@ export default async function ProdutoPage({ params }: { params: Promise<{ slug: 
           </p>
         )}
       </div>
-    </article>
+    </div>
   );
 }
