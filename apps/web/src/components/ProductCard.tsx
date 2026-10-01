@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { formatPrice, installmentText } from "@/lib/format";
-import type { Product } from "@/types/product";
+import { assetUrl } from "@/lib/api";
+import { BADGE_LABEL, type Product } from "@/types/product";
 
 export function ProductCard({ product }: { product: Product }) {
-  const badge = product.badge ?? (product.compareAtPrice ? "Promoção" : undefined);
-  const image = product.images[0];
+  const badge = product.badge ?? (product.compareAtPrice ? "PROMOCAO" : undefined);
+  const image = assetUrl(product.images[0]);
 
   return (
     <Link href={`/produtos/${product.slug}`} className="card">
@@ -21,7 +22,7 @@ export function ProductCard({ product }: { product: Product }) {
             <span className="card-photo-label">Foto do produto</span>
           </>
         )}
-        {badge && <span className={`badge${badge === "Promoção" ? " badge-sale" : ""}`}>{badge}</span>}
+        {badge && <span className={`badge${badge === "PROMOCAO" ? " badge-sale" : ""}`}>{BADGE_LABEL[badge]}</span>}
       </div>
 
       <div className="card-body">

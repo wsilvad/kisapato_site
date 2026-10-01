@@ -12,6 +12,12 @@ enum Role {
   ADMIN
 }
 
+enum ProductBadge {
+  LANCAMENTO
+  PROMOCAO
+  DESTAQUE
+}
+
 enum OrderStatus {
   PENDING
   PAID
@@ -22,14 +28,15 @@ enum OrderStatus {
 
 /// Perfil do usuário (cliente ou administrador).
 model Profile {
-  id        String   @id @default(uuid()) @db.Uuid
-  email     String   @unique
-  name      String?
-  phone     String?
-  role      Role     @default(CUSTOMER)
-  orders    Order[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id           String   @id @default(uuid()) @db.Uuid
+  email        String   @unique
+  passwordHash String
+  name         String?
+  phone        String?
+  role         Role     @default(CUSTOMER)
+  orders       Order[]
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   @@map("profiles")
 }
@@ -44,19 +51,25 @@ model Category {
 }
 
 model Product {
-  id          String           @id @default(uuid())
-  name        String
-  slug        String           @unique
-  description String?
-  brand       String?
-  price       Decimal          @db.Decimal(10, 2)
-  images      String[]
-  active      Boolean          @default(true)
-  categoryId  String
-  category    Category         @relation(fields: [categoryId], references: [id])
-  variants    ProductVariant[]
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
+  id               String           @id @default(uuid())
+  name             String
+  slug             String           @unique
+  description      String?
+  careInstructions String?
+  brand            String?
+  gender           String?
+  reference        String?
+  price            Decimal          @db.Decimal(10, 2)
+  compareAtPrice   Decimal?         @db.Decimal(10, 2)
+  badge            ProductBadge?
+  /// URLs das fotos; a primeira é a principal.
+  images           String[]
+  active           Boolean          @default(true)
+  categoryId       String
+  category         Category         @relation(fields: [categoryId], references: [id])
+  variants         ProductVariant[]
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
 
   @@index([categoryId])
   @@map("products")
@@ -103,4 +116,38 @@ model OrderItem {
 
   @@index([orderId])
   @@map("order_items")
+}
+
+/// Banners da home (hero).
+model Campaign {
+  id              String    @id @default(uuid())
+  eyebrow         String?
+  title           String
+  body            String?
+  buttonLabel     String?
+  buttonUrl       String?
+  desktopImageUrl String?
+  mobileImageUrl  String?
+  startsAt        DateTime?
+  endsAt          DateTime?
+  sortOrder       Int       @default(0)
+  active          Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@map("campaigns")
+}
+
+/// Vitrines da home: seleção automática de produtos por selo.
+model Showcase {
+  id            String       @id @default(uuid())
+  title         String
+  selectionRule ProductBadge @default(DESTAQUE)
+  itemLimit     Int          @default(4)
+  sortOrder     Int          @default(0)
+  active        Boolean      @default(true)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  @@map("showcases")
 }

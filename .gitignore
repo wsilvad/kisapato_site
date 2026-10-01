@@ -20,3 +20,5 @@ apps/api/src/generated/
 # logs e sistema
 *.log
 .DS_Store
+apps/api/uploads/
+uploads/

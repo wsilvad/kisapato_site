@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { api } from "@/lib/api";
+import { AddToCart } from "@/components/AddToCart";
+import { api, assetUrl } from "@/lib/api";
 import { formatPrice, installmentText } from "@/lib/format";
 import type { Product } from "@/types/product";
 
@@ -27,20 +28,24 @@ export default async function ProdutoPage({ params }: { params: Promise<{ slug: 
   const product = await getProduct((await params).slug);
   if (!product) notFound();
 
-  const sizes = [...new Set(product.variants?.map((variant) => variant.size))];
+  const image = assetUrl(product.images[0]);
 
   return (
     <div className="page product">
-      <div className="product-media" aria-hidden="true" />
+      <div className="product-media">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        {image && <img src={image} alt={product.name} />}
+      </div>
       <div className="product-info">
         <span className="card-brand">{product.brand ?? product.category.name}</span>
         <h1 className="page-title">{product.name}</h1>
         <p className="price">{formatPrice(product.price)}</p>
         <p className="card-installments">{installmentText(product.price)}</p>
         {product.description && <p>{product.description}</p>}
-        {sizes.length > 0 && (
+        <AddToCart product={product} />
+        {product.careInstructions && (
           <p>
-            <strong>Numeração:</strong> {sizes.join(", ")}
+            <strong>Cuidados:</strong> {product.careInstructions}
           </p>
         )}
       </div>

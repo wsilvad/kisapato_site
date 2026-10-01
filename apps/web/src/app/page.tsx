@@ -1,17 +1,18 @@
 import Link from "next/link";
 import { ProductCard } from "@/components/ProductCard";
-import { api } from "@/lib/api";
+import { api, assetUrl } from "@/lib/api";
 import { sampleHighlights, sampleLaunches } from "@/lib/sample-products";
-import type { Product } from "@/types/product";
+import type { Campaign, Product } from "@/types/product";
 
 export const dynamic = "force-dynamic";
 
 const CATEGORIES = ["Feminino", "Masculino", "Infantil"];
 
-async function loadShowcase(): Promise<{ launches: Product[]; highlights: Product[] }> {
+async function loadShowcase(): Promise<{ launches: Product[]; highlights: Product[]; campaign?: Campaign }> {
   try {
     const { items } = await api.listProducts({ page: 1 });
-    if (items.length > 0) return { launches: items.slice(0, 4), highlights: items.slice(4, 8) };
+    const home = await api.home().catch(() => null);
+    if (items.length > 0) return { launches: items.slice(0, 4), highlights: items.slice(4, 8), campaign: home?.campaigns[0] };
   } catch {
     // API indisponível: usa os produtos de exemplo do protótipo
   }
@@ -39,33 +40,45 @@ function ProductSection({ title, products }: { title: string; products: Product[
 }
 
 export default async function HomePage() {
-  const { launches, highlights } = await loadShowcase();
+  const { launches, highlights, campaign } = await loadShowcase();
+  const heroImage = assetUrl(campaign?.desktopImageUrl);
 
   return (
     <>
       <section className="hero">
         <div className="hero-copy">
-          <span className="hero-eyebrow">Nova coleção · Primavera</span>
-          <h1 className="hero-title">
-            Passos que
-            <br />
-            combinam com
-            <br />
-            <i>você</i>
-          </h1>
+          <span className="hero-eyebrow">{campaign?.eyebrow ?? "Nova coleção · Primavera"}</span>
+          {campaign ? (
+            <h1 className="hero-title">{campaign.title}</h1>
+          ) : (
+            <h1 className="hero-title">
+              Passos que
+              <br />
+              combinam com
+              <br />
+              <i>você</i>
+            </h1>
+          )}
           <p className="hero-text">
-            Calçados para toda a família, das marcas que você confia, com retirada grátis na loja.
+            {campaign?.body ?? "Calçados para toda a família, das marcas que você confia, com retirada grátis na loja."}
           </p>
           <div className="hero-actions">
-            <Link href="/produtos" className="btn btn-solid">
-              Ver lançamentos
+            <Link href={campaign?.buttonUrl ?? "/produtos"} className="btn btn-solid">
+              {campaign?.buttonLabel ?? "Ver lançamentos"}
             </Link>
             <Link href="/produtos" className="btn btn-outline">
               Todos os modelos
             </Link>
           </div>
         </div>
-        <div className="hero-media">[Foto de campanha — 820 × 580]</div>
+        <div className="hero-media">
+          {heroImage ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={heroImage} alt={campaign?.title ?? ""} />
+          ) : (
+            "[Foto de campanha — 820 × 580]"
+          )}
+        </div>
         <div className="hero-dots" aria-hidden="true">
           <span className="is-active" />
           <span />

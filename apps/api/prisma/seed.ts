@@ -1,4 +1,5 @@
 import "dotenv/config";
+import bcrypt from "bcryptjs";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../src/generated/prisma/client.js";
 
@@ -56,7 +57,6 @@ async function main() {
       create: {
         ...data,
         categoryId,
-        images: [],
         variants: {
           create: colors.flatMap((color) =>
             sizes.map((size) => ({
@@ -69,6 +69,23 @@ async function main() {
         },
       },
     });
+  }
+
+  await prisma.showcase.upsert({
+    where: { id: "00000000-0000-0000-0000-000000000001" },
+    update: {},
+    create: { id: "00000000-0000-0000-0000-000000000001", title: "Destaques", selectionRule: "DESTAQUE", itemLimit: 4 },
+  });
+
+  // Admin inicial: defina SEED_ADMIN_EMAIL e SEED_ADMIN_PASSWORD no .env (a senha não é versionada).
+  const { SEED_ADMIN_EMAIL: email, SEED_ADMIN_PASSWORD: password } = process.env;
+  if (email && password) {
+    await prisma.profile.upsert({
+      where: { email },
+      update: { role: "ADMIN" },
+      create: { email, name: "Administrador", role: "ADMIN", passwordHash: await bcrypt.hash(password, 12) },
+    });
+    console.log(`Admin garantido: ${email}`);
   }
 
   console.log("Seed concluído.");

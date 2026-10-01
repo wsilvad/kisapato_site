@@ -1,5 +1,9 @@
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
+import { useCart } from "@/lib/cart";
+import { useSession } from "@/lib/session";
 
 const NAV_LINKS = [
   { label: "Feminino", href: "/produtos" },
@@ -9,12 +13,9 @@ const NAV_LINKS = [
   { label: "Lançamentos", href: "/produtos" },
 ];
 
-interface HeaderProps {
-  /** Quantidade de itens na sacola; o selo só aparece quando > 0. */
-  cartCount?: number;
-}
-
-export function Header({ cartCount = 0 }: HeaderProps) {
+export function Header() {
+  const { count: cartCount } = useCart();
+  const { user } = useSession();
   return (
     <header className="header">
       <div className="topbar">
@@ -46,12 +47,12 @@ export function Header({ cartCount = 0 }: HeaderProps) {
               <path d="M20 20l-3.5-3.5" />
             </svg>
           </button>
-          <button type="button" className="icon-btn" aria-label="Minha conta">
+          <Link href={user ? "/conta" : "/auth"} className="icon-btn" aria-label={user ? "Minha conta" : "Entrar"}>
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
               <circle cx="12" cy="8" r="4" />
               <path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6" />
             </svg>
-          </button>
+          </Link>
           <Link href="/sacola" className="icon-btn cart-link" aria-label="Sacola">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
               <path d="M5 8h14l-1 13H6L5 8z" />
