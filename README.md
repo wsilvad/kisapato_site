@@ -1,30 +1,83 @@
-# Ki Sapato Chic
+# Ki Sapato
 
-vamos criar um ecomerce para ki sapato, uma loja de sapatos, bolsas e acessórios masculino e feminino sediada em santo Antonio da patrulha/RS.  utilize como base os sites:
+E-commerce de calçados. Monorepo com npm workspaces.
 
-https://www.luzdalua.com.br/
-https://www.tf.com.br
-https://www.studiomshop.com.br/todos-os-modelos
+| Pasta | O que é | Stack |
+| --- | --- | --- |
+| `apps/web` | Loja (frontend) | Next.js 16 (App Router), React 19, TypeScript |
+| `apps/api` | API REST | Express 5, TypeScript, Zod, Prisma 7 |
+| Banco | PostgreSQL gerenciado | Supabase + Prisma |
 
-em anexo o .md do protótipo do site e a logo para se basear nas cores para utiizar
+## Primeiros passos
 
-This project was built with [Lovable](https://lovable.dev).
+1. Crie um projeto no [Supabase](https://supabase.com) e copie as strings de conexão (Project Settings > Database).
+2. Configure as variáveis de ambiente:
 
-## Build with Lovable
+   ```bash
+   cp apps/api/.env.example apps/api/.env
+   cp apps/web/.env.example apps/web/.env.local
+   ```
 
-Continue developing this project in the [Lovable editor](https://lovable.dev/projects/82e7340c-505e-45b7-8e92-3990530d2150).
+3. Instale, gere o client do Prisma, rode a migration e o seed:
 
-- **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: every change made in Lovable is committed straight to this repository.
-- **Full ownership**: this code is yours. Push to `main` on GitHub and your changes sync back into Lovable, ready for your next prompt.
+   ```bash
+   npm install
+   npm run db:generate
+   npm run db:migrate -- --name init
+   npm run db:seed
+   ```
 
-## Development
+4. Suba API (`http://localhost:3333/api`) e web (`http://localhost:3000`):
 
-Prefer working locally? You need Node.js and npm — [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
+   ```bash
+   npm run dev
+   ```
 
-```sh
-git clone <this-repository-url>
-cd <repository-name>
-npm i
-npm run dev
+## Scripts (raiz)
+
+| Comando | Ação |
+| --- | --- |
+| `npm run dev` | API e web juntos |
+| `npm run build` | Build de produção da API e do web |
+| `npm run typecheck` | Checagem de tipos nos dois apps |
+| `npm run lint` | ESLint no web |
+| `npm run db:migrate` / `db:deploy` | Migrations (dev / produção) |
+| `npm run db:seed` | Popula categorias e produtos de exemplo |
+| `npm run db:studio` | Prisma Studio |
+
+## Estrutura
+
 ```
+apps/
+  api/
+    prisma/            schema.prisma, seed.ts
+    prisma.config.ts   conexão do CLI (DIRECT_URL)
+    src/
+      config/          validação de env (Zod)
+      lib/             prisma client, AppError
+      middlewares/     erros e 404
+      modules/         health, categories, products (routes/service/schemas)
+      routes/          agrega os módulos em /api
+  web/
+    src/
+      app/             páginas: /, /produtos, /produtos/[slug]
+      components/      Header, ProductCard
+      lib/             cliente da API, formatadores
+      types/           tipos compartilhados com a API
+```
+
+## Endpoints iniciais
+
+- `GET /api/health`
+- `GET /api/categories`
+- `GET /api/products?page=1&pageSize=12&category=tenis&search=urbano`
+- `GET /api/products/:slug`
+
+## Supabase
+
+- `DATABASE_URL` (pooler, porta 6543) é usada pela API em runtime; `DIRECT_URL` (porta 5432) é usada pelo CLI do Prisma nas migrations.
+- `Profile.id` corresponde ao id de `auth.users` do Supabase Auth, pronto para o login ser plugado depois.
+
+## Próximos passos sugeridos
+
+Autenticação (Supabase Auth + middleware na API), carrinho, criação de pedidos, pagamento, painel admin e upload de imagens (Supabase Storage).
