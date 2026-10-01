@@ -1,6 +1,6 @@
 # Ki Sapato Chic
 
-vamos criar um ecomerce para ki sapato, uma loja de sapatos, bolsas e acessórios masculino e feminino sediada em santo Antonio da patrulha/RS.  utilize como base os sites:
+vamos criar um ecomerce para ki sapato, uma loja de sapatos, bolsas e acessórios masculino e feminino sediada em santo Antonio da patrulha/RS. utilize como base os sites:
 
 https://www.luzdalua.com.br/
 https://www.tf.com.br
@@ -39,8 +39,12 @@ anterior e não corresponde a esta versão.
 A etapa de build reinstala também as dependências de desenvolvimento porque
 Vite, Nitro e o adaptador do Lovable são necessários para gerar o servidor.
 O processo inicia em `0.0.0.0:8080`, conforme a exigência da Discloud.
-O servidor compilado fica em `build/server/index.mjs`, uma pasta não oculta
-que é preservada entre as etapas de build e execução da plataforma.
+O servidor compilado fica em `dist/server/index.mjs`. Em aplicações
+`TYPE=site` com `BUILD` habilitado, a Discloud reserva `dist/` para a saída do
+build. O `start.mjs` aceita tanto `server/index.mjs`, quando o conteúdo é
+exposto na raiz do runtime, quanto `dist/server/index.mjs`.
 
 Configure no ambiente da aplicação as variáveis públicas do Supabase e, para
-as operações administrativas do servidor, `SUPABASE_SERVICE_ROLE_KEY`.
+futuras operações administrativas executadas no servidor,
+`SUPABASE_SERVICE_ROLE_KEY`. O passo a passo completo de criação e atualização
+do ambiente está em [`DISCLOUD.md`](./DISCLOUD.md).

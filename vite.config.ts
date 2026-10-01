@@ -7,14 +7,11 @@
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 
 export default defineConfig({
-  // Discloud runs a regular Node.js process. This produces
-  // build/server/index.mjs instead of a Cloudflare worker bundle.
+  // For TYPE=site with BUILD enabled, Discloud reserves dist for build output.
   nitro: {
     preset: "node-server",
-    // Discloud does not preserve hidden build directories such as .output
-    // when it promotes the builder result to the runtime container.
     output: {
-      dir: "build",
+      dir: "dist",
     },
   },
   tanstackStart: {
