@@ -1,0 +1,9 @@
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useState } from "react";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { supabase } from "@/integrations/supabase/client";
+export const Route=createFileRoute("/reset-password")({head:()=>({meta:[{title:"Redefinir senha — Ki Sapato"},{name:"description",content:"Defina uma nova senha para sua conta Ki Sapato."},{property:"og:title",content:"Redefinir senha — Ki Sapato"},{property:"og:description",content:"Crie uma nova senha segura."},{property:"og:type",content:"website"},{name:"twitter:card",content:"summary"}]}),component:ResetPage});
+function ResetPage(){const [password,setPassword]=useState("");const navigate=useNavigate();async function submit(e:React.FormEvent){e.preventDefault();const hash=new URLSearchParams(window.location.hash.slice(1));if(hash.get("type")!=="recovery")return toast.error("Este link de recuperação não é válido.");const {error}=await supabase.auth.updateUser({password});if(error)toast.error(error.message);else{toast.success("Senha atualizada.");navigate({to:"/conta"});}}return <form onSubmit={submit} className="mx-auto max-w-md px-6 py-24"><h1 className="font-display text-5xl">Nova senha</h1><p className="mt-3 text-sm text-muted-foreground">Escolha uma senha com pelo menos 6 caracteres.</p><Label htmlFor="new-password" className="mt-8 block">Nova senha</Label><Input id="new-password" type="password" minLength={6} value={password} onChange={e=>setPassword(e.target.value)} required className="mt-2 h-12 rounded-none"/><Button className="mt-5 h-12 w-full rounded-none">Salvar nova senha</Button></form>}
