@@ -1,5 +1,6 @@
 .git/
 .output/
+build/
 .tanstack/
 .vinxi/
 .nitro/

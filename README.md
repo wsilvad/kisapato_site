@@ -39,6 +39,8 @@ anterior e não corresponde a esta versão.
 A etapa de build reinstala também as dependências de desenvolvimento porque
 Vite, Nitro e o adaptador do Lovable são necessários para gerar o servidor.
 O processo inicia em `0.0.0.0:8080`, conforme a exigência da Discloud.
+O servidor compilado fica em `build/server/index.mjs`, uma pasta não oculta
+que é preservada entre as etapas de build e execução da plataforma.
 
 Configure no ambiente da aplicação as variáveis públicas do Supabase e, para
 as operações administrativas do servidor, `SUPABASE_SERVICE_ROLE_KEY`.

@@ -3,4 +3,4 @@
 process.env.HOST ??= "0.0.0.0";
 process.env.PORT ??= "8080";
 
-await import("./.output/server/index.mjs");
+await import("./build/server/index.mjs");
