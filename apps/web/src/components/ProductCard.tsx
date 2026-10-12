@@ -26,7 +26,7 @@ export function ProductCard({ product }: { product: Product }) {
       </div>
 
       <div className="card-body">
-        <span className="card-brand">{product.brand ?? product.category.name}</span>
+        <span className="card-brand">{product.brand?.name ?? product.category.name}</span>
         <span className="card-name">{product.name}</span>
         <div className="card-prices">
           {product.compareAtPrice ? (

@@ -18,9 +18,16 @@ enum ProductBadge {
   DESTAQUE
 }
 
+enum StockMovementType {
+  SALE
+  CANCELLATION
+  ADJUSTMENT
+}
+
 enum OrderStatus {
   PENDING
   PAID
+  PICKING
   SHIPPED
   DELIVERED
   CANCELED
@@ -41,12 +48,58 @@ model Profile {
   @@map("profiles")
 }
 
-model Category {
-  id       String    @id @default(uuid())
-  name     String
-  slug     String    @unique
-  products Product[]
+/// Classe de produto: o nível acima da categoria (ex.: Calçados, Acessórios).
+model ProductClass {
+  id         String     @id @default(uuid())
+  name       String
+  slug       String     @unique
+  sortOrder  Int        @default(0)
+  /// Inativa: some da loja junto com as categorias e produtos dela.
+  active     Boolean    @default(true)
+  categories Category[]
 
+  @@map("product_classes")
+}
+
+/// Marca do produto (ex.: Ki Sapato, Vizzano). Cadastro próprio, reutilizado por vários produtos.
+model Brand {
+  id        String    @id @default(uuid())
+  name      String
+  slug      String    @unique
+  sortOrder Int       @default(0)
+  /// Inativa: seus produtos somem da loja.
+  active    Boolean   @default(true)
+  products  Product[]
+
+  @@map("brands")
+}
+
+/// Público-alvo (ex.: Feminino, Masculino, Infantil). Um produto pode ter vários.
+model Audience {
+  id        String    @id @default(uuid())
+  name      String
+  slug      String    @unique
+  sortOrder Int       @default(0)
+  products  Product[]
+
+  @@map("audiences")
+}
+
+model Category {
+  id           String        @id @default(uuid())
+  name         String
+  slug         String        @unique
+  classId      String?
+  productClass ProductClass? @relation(fields: [classId], references: [id])
+  /// Foto do cartão "Compre por categoria" na home.
+  imageUrl     String?
+  sortOrder    Int           @default(0)
+  showOnHome   Boolean       @default(false)
+  /// Inativa: some da loja junto com os produtos dela.
+  active       Boolean       @default(true)
+  products     Product[]
+
+  @@index([classId])
   @@map("categories")
 }
 
@@ -56,50 +109,62 @@ model Product {
   slug             String           @unique
   description      String?
   careInstructions String?
-  brand            String?
-  gender           String?
+  brandId          String?
+  brand            Brand?           @relation(fields: [brandId], references: [id])
   reference        String?
   price            Decimal          @db.Decimal(10, 2)
   compareAtPrice   Decimal?         @db.Decimal(10, 2)
+  /// Custo de compra; base para margem e lucro nos indicadores.
+  costPrice        Decimal?         @db.Decimal(10, 2)
   badge            ProductBadge?
   /// URLs das fotos; a primeira é a principal.
   images           String[]
   active           Boolean          @default(true)
   categoryId       String
   category         Category         @relation(fields: [categoryId], references: [id])
+  audiences        Audience[]
   variants         ProductVariant[]
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @updatedAt
 
   @@index([categoryId])
+  @@index([brandId])
   @@map("products")
 }
 
 /// Combinação de numeração + cor, com estoque próprio.
 model ProductVariant {
-  id         String      @id @default(uuid())
+  id         String          @id @default(uuid())
   productId  String
-  product    Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
-  sku        String      @unique
+  product    Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  sku        String          @unique
   size       Int
   color      String
-  stock      Int         @default(0)
+  stock      Int             @default(0)
   orderItems OrderItem[]
+  movements  StockMovement[]
 
   @@unique([productId, size, color])
   @@map("product_variants")
 }
 
 model Order {
-  id              String      @id @default(uuid())
-  profileId       String      @db.Uuid
-  profile         Profile     @relation(fields: [profileId], references: [id])
-  status          OrderStatus @default(PENDING)
-  total           Decimal     @db.Decimal(10, 2)
+  id              String       @id @default(uuid())
+  profileId       String       @db.Uuid
+  profile         Profile      @relation(fields: [profileId], references: [id])
+  status          OrderStatus  @default(PENDING)
+  total           Decimal      @db.Decimal(10, 2)
   shippingAddress Json
+  /// Transportadora, código e link de rastreio (preenchidos ao enviar).
+  carrier         String?
+  trackingCode    String?
+  trackingUrl     String?
+  /// Observação interna da equipe (o cliente nunca vê).
+  internalNote    String?
   items           OrderItem[]
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
+  events          OrderEvent[]
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
 
   @@index([profileId])
   @@map("orders")
@@ -113,6 +178,10 @@ model OrderItem {
   variant   ProductVariant @relation(fields: [variantId], references: [id])
   quantity  Int
   unitPrice Decimal        @db.Decimal(10, 2)
+  /// Custo do produto no momento da venda (para o lucro não mudar se o custo for reajustado).
+  unitCost  Decimal?       @db.Decimal(10, 2)
+  /// Conferido na separação do estoque.
+  picked    Boolean        @default(false)
 
   @@index([orderId])
   @@map("order_items")
@@ -150,4 +219,46 @@ model Showcase {
   updatedAt     DateTime     @updatedAt
 
   @@map("showcases")
+}
+
+/// Conteúdo editável do site (avisos do topo, menu, faixa promocional, benefícios, rodapé).
+/// Uma linha por chave; o valor é validado em modules/settings.
+model SiteSetting {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt
+
+  @@map("site_settings")
+}
+
+/// Histórico de entradas e saídas de estoque de cada variação.
+model StockMovement {
+  id        String            @id @default(uuid())
+  variantId String
+  variant   ProductVariant    @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  type      StockMovementType
+  /// Variação do estoque: negativa = saída, positiva = entrada.
+  quantity  Int
+  /// Estoque da variação depois deste movimento.
+  balance   Int
+  note      String?
+  orderId   String?
+  createdAt DateTime          @default(now())
+
+  @@index([variantId, createdAt])
+  @@index([createdAt])
+  @@map("stock_movements")
+}
+
+/// Histórico de situações do pedido (quando mudou e para quê).
+model OrderEvent {
+  id        String      @id @default(uuid())
+  orderId   String
+  order     Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  status    OrderStatus
+  note      String?
+  createdAt DateTime    @default(now())
+
+  @@index([orderId, createdAt])
+  @@map("order_events")
 }

@@ -7,6 +7,18 @@ const prisma = new PrismaClient({
   adapter: new PrismaPg({ connectionString: process.env.DIRECT_URL || process.env.DATABASE_URL }),
 });
 
+const classes = [
+  { name: "Calçados", slug: "calcados", sortOrder: 0 },
+  { name: "Acessórios", slug: "acessorios", sortOrder: 1 },
+];
+
+const audiences = [
+  { name: "Feminino", slug: "feminino", sortOrder: 0 },
+  { name: "Masculino", slug: "masculino", sortOrder: 1 },
+  { name: "Infantil", slug: "infantil", sortOrder: 2 },
+  { name: "Unissex", slug: "unissex", sortOrder: 3 },
+];
+
 const categories = [
   { name: "Tênis", slug: "tenis" },
   { name: "Sandálias", slug: "sandalias" },
@@ -17,7 +29,6 @@ const products = [
   {
     name: "Tênis Urbano Classic",
     slug: "tenis-urbano-classic",
-    brand: "Ki Sapato",
     price: "249.90",
     category: "tenis",
     colors: ["Preto", "Branco"],
@@ -26,7 +37,6 @@ const products = [
   {
     name: "Sandália Conforto Verão",
     slug: "sandalia-conforto-verao",
-    brand: "Ki Sapato",
     price: "129.90",
     category: "sandalias",
     colors: ["Caramelo"],
@@ -35,7 +45,6 @@ const products = [
   {
     name: "Bota Couro Trail",
     slug: "bota-couro-trail",
-    brand: "Ki Sapato",
     price: "389.90",
     category: "botas",
     colors: ["Marrom"],
@@ -44,8 +53,13 @@ const products = [
 ];
 
 async function main() {
+  const brand = await prisma.brand.upsert({ where: { slug: "ki-sapato" }, update: {}, create: { name: "Ki Sapato", slug: "ki-sapato" } });
+  for (const data of classes) await prisma.productClass.upsert({ where: { slug: data.slug }, update: {}, create: data });
+  for (const data of audiences) await prisma.audience.upsert({ where: { slug: data.slug }, update: {}, create: data });
+
+  const { id: classId } = await prisma.productClass.findUniqueOrThrow({ where: { slug: "calcados" } });
   for (const category of categories) {
-    await prisma.category.upsert({ where: { slug: category.slug }, update: {}, create: category });
+    await prisma.category.upsert({ where: { slug: category.slug }, update: {}, create: { ...category, classId } });
   }
 
   for (const { category, colors, sizes, ...data } of products) {
@@ -57,6 +71,7 @@ async function main() {
       create: {
         ...data,
         categoryId,
+        brandId: brand.id,
         variants: {
           create: colors.flatMap((color) =>
             sizes.map((size) => ({

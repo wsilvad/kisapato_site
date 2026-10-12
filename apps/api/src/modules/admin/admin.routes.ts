@@ -1,35 +1,175 @@
 import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../../lib/prisma.js";
+import { AppError } from "../../lib/errors.js";
 import { requireAdmin } from "../../middlewares/auth.js";
+import { getSiteSettings, saveSiteSettings } from "../settings/settings.service.js";
+import { recordMovement } from "../stock/stock.service.js";
+import { stockRouter } from "../stock/stock.routes.js";
+import { reportsRouter } from "../reports/reports.routes.js";
+import { fulfillmentRouter } from "../fulfillment/fulfillment.routes.js";
 
 export const adminRouter = Router();
 adminRouter.use(requireAdmin);
+adminRouter.use("/stock", stockRouter);
+adminRouter.use("/reports", reportsRouter);
+adminRouter.use("/orders", fulfillmentRouter);
 
 const slug = z.string().trim().min(1).regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, "Use letras minúsculas, números e hífen");
 const money = z.coerce.number().nonnegative().transform((v) => v.toFixed(2));
 const badge = z.enum(["LANCAMENTO", "PROMOCAO", "DESTAQUE"]);
 
+/** Ativar/desativar direto da tabela (sem reenviar o cadastro inteiro). Inativo some da loja com os produtos ligados. */
+const activeBody = z.object({ active: z.boolean() });
+adminRouter.patch("/categories/:id/active", async (req, res) => {
+  res.json(await prisma.category.update({ where: { id: req.params.id }, data: activeBody.parse(req.body) }));
+});
+adminRouter.patch("/classes/:id/active", async (req, res) => {
+  res.json(await prisma.productClass.update({ where: { id: req.params.id }, data: activeBody.parse(req.body) }));
+});
+adminRouter.patch("/brands/:id/active", async (req, res) => {
+  res.json(await prisma.brand.update({ where: { id: req.params.id }, data: activeBody.parse(req.body) }));
+});
+adminRouter.patch("/products/:id/active", async (req, res) => {
+  res.json(await prisma.product.update({ where: { id: req.params.id }, data: activeBody.parse(req.body) }));
+});
+
+/* Classes (Calçados, Acessórios…) */
+const classBody = z.object({ name: z.string().trim().min(1), slug, sortOrder: z.coerce.number().int().default(0) });
+
+adminRouter.get("/classes", async (_req, res) => {
+  res.json(
+    await prisma.productClass.findMany({
+      include: { _count: { select: { categories: true } } },
+      orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+    }),
+  );
+});
+adminRouter.post("/classes", async (req, res) => {
+  res.status(201).json(await prisma.productClass.create({ data: classBody.parse(req.body) }));
+});
+adminRouter.put("/classes/:id", async (req, res) => {
+  res.json(await prisma.productClass.update({ where: { id: req.params.id }, data: classBody.parse(req.body) }));
+});
+adminRouter.delete("/classes/:id", async (req, res) => {
+  const categories = await prisma.category.count({ where: { classId: req.params.id } });
+  if (categories > 0) {
+    throw new AppError(`Esta classe tem ${categories} categoria(s). Mova-as para outra classe antes de excluir.`, 409);
+  }
+  await prisma.productClass.delete({ where: { id: req.params.id } });
+  res.status(204).end();
+});
+
+/* Públicos-alvo (Feminino, Masculino, Infantil…) */
+const audienceBody = classBody;
+
+adminRouter.get("/audiences", async (_req, res) => {
+  res.json(
+    await prisma.audience.findMany({
+      include: { _count: { select: { products: true } } },
+      orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+    }),
+  );
+});
+adminRouter.post("/audiences", async (req, res) => {
+  res.status(201).json(await prisma.audience.create({ data: audienceBody.parse(req.body) }));
+});
+adminRouter.put("/audiences/:id", async (req, res) => {
+  res.json(await prisma.audience.update({ where: { id: req.params.id }, data: audienceBody.parse(req.body) }));
+});
+/** Excluir um público só desfaz o vínculo com os produtos; os produtos continuam cadastrados. */
+adminRouter.delete("/audiences/:id", async (req, res) => {
+  await prisma.audience.delete({ where: { id: req.params.id } });
+  res.status(204).end();
+});
+
+/* Marcas */
+const brandBody = z.object({
+  name: z.string().trim().min(1),
+  /** Opcional: na criação é gerado a partir do nome; na edição o atual é mantido. */
+  slug: slug.optional(),
+  sortOrder: z.coerce.number().int().default(0),
+});
+
+adminRouter.get("/brands", async (_req, res) => {
+  res.json(
+    await prisma.brand.findMany({
+      include: { _count: { select: { products: true } } },
+      orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+    }),
+  );
+});
+adminRouter.post("/brands", async (req, res) => {
+  const { slug: given, ...data } = brandBody.parse(req.body);
+  res.status(201).json(await prisma.brand.create({ data: { ...data, slug: given ?? (await uniqueBrandSlug(data.name)) } }));
+});
+adminRouter.put("/brands/:id", async (req, res) => {
+  const { slug: given, ...data } = brandBody.parse(req.body);
+  res.json(await prisma.brand.update({ where: { id: req.params.id }, data: { ...data, ...(given && { slug: given }) } }));
+});
+adminRouter.delete("/brands/:id", async (req, res) => {
+  const products = await prisma.product.count({ where: { brandId: req.params.id } });
+  if (products > 0) {
+    throw new AppError(`Esta marca tem ${products} produto(s). Troque a marca deles antes de excluir.`, 409);
+  }
+  await prisma.brand.delete({ where: { id: req.params.id } });
+  res.status(204).end();
+});
+
 /* Categorias */
-const categoryBody = z.object({ name: z.string().trim().min(1), slug });
+const toSlug = (value: string) =>
+  value.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+
+/** Slug a partir do nome; se `taken` disser que já existe, acrescenta -2, -3… */
+async function uniqueSlug(name: string, fallback: string, taken: (slug: string) => Promise<boolean>) {
+  const base = toSlug(name) || fallback;
+  for (let n = 1; ; n++) {
+    const candidate = n === 1 ? base : `${base}-${n}`;
+    if (!(await taken(candidate))) return candidate;
+  }
+}
+const uniqueCategorySlug = (name: string) => uniqueSlug(name, "categoria", async (s) => !!(await prisma.category.findUnique({ where: { slug: s } })));
+const uniqueBrandSlug = (name: string) => uniqueSlug(name, "marca", async (s) => !!(await prisma.brand.findUnique({ where: { slug: s } })));
+
+const categoryBody = z.object({
+  name: z.string().trim().min(1),
+  /** Opcional: na criação é gerado a partir do nome; na edição o atual é mantido. */
+  slug: slug.optional(),
+  classId: z.string().min(1, "Escolha a classe da categoria"),
+  imageUrl: z.string().nullish(),
+  sortOrder: z.coerce.number().int().default(0),
+  showOnHome: z.boolean().default(false),
+});
 
 adminRouter.get("/categories", async (_req, res) => {
-  res.json(await prisma.category.findMany({ orderBy: { name: "asc" } }));
+  res.json(
+    await prisma.category.findMany({
+      include: { productClass: true, _count: { select: { products: true } } },
+      orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+    }),
+  );
 });
 adminRouter.post("/categories", async (req, res) => {
-  res.status(201).json(await prisma.category.create({ data: categoryBody.parse(req.body) }));
+  const { slug: given, ...data } = categoryBody.parse(req.body);
+  res.status(201).json(await prisma.category.create({ data: { ...data, slug: given ?? (await uniqueCategorySlug(data.name)) } }));
 });
 adminRouter.put("/categories/:id", async (req, res) => {
-  res.json(await prisma.category.update({ where: { id: req.params.id }, data: categoryBody.parse(req.body) }));
+  const { slug: given, ...data } = categoryBody.parse(req.body);
+  res.json(await prisma.category.update({ where: { id: req.params.id }, data: { ...data, ...(given && { slug: given }) } }));
 });
 adminRouter.delete("/categories/:id", async (req, res) => {
+  const products = await prisma.product.count({ where: { categoryId: req.params.id } });
+  if (products > 0) {
+    throw new AppError(`Esta categoria tem ${products} produto(s). Mova-os para outra categoria antes de excluir.`, 409);
+  }
   await prisma.category.delete({ where: { id: req.params.id } });
   res.status(204).end();
 });
 
 /* Produtos */
 const variantBody = z.object({
-  sku: z.string().trim().min(1),
+  /** Opcional: sem SKU, a API monta slug-cor-numeração. */
+  sku: z.string().trim().optional(),
   size: z.coerce.number().int().positive(),
   color: z.string().trim().min(1),
   stock: z.coerce.number().int().min(0),
@@ -40,45 +180,79 @@ const productBody = z.object({
   slug,
   description: z.string().nullish(),
   careInstructions: z.string().nullish(),
-  brand: z.string().nullish(),
-  gender: z.string().nullish(),
+  brandId: z.string().nullish(),
   reference: z.string().nullish(),
   price: money,
   compareAtPrice: money.nullish(),
+  costPrice: money.nullish(),
   badge: badge.nullish(),
   images: z.array(z.string()).default([]),
   active: z.boolean().default(true),
   categoryId: z.string().min(1),
+  audienceIds: z.array(z.string()).default([]),
   variants: z.array(variantBody).default([]),
 });
+
+const productInclude = { brand: true, category: { include: { productClass: true } }, audiences: true, variants: true };
+/** No admin o produto vem com o custo (omitido por padrão no cliente do Prisma). */
+const withCost = { omit: { costPrice: false } } as const;
+
+/** Preenche o SKU das variações que vieram sem um: slug do produto + cor + numeração. */
+const withSkus = (productSlug: string, variants: z.infer<typeof variantBody>[]) =>
+  variants.map((v) => ({ ...v, sku: v.sku || [productSlug, toSlug(v.color), v.size].join("-") }));
 
 adminRouter.get("/products", async (_req, res) => {
   res.json(
     await prisma.product.findMany({
-      include: { category: true, variants: true },
+      ...withCost,
+      include: productInclude,
       orderBy: { createdAt: "desc" },
     }),
   );
 });
-adminRouter.post("/products", async (req, res) => {
-  const { variants, ...data } = productBody.parse(req.body);
-  res.status(201).json(
-    await prisma.product.create({
-      data: { ...data, variants: { create: variants } },
-      include: { category: true, variants: true },
-    }),
-  );
+adminRouter.get("/products/:id", async (req, res) => {
+  const product = await prisma.product.findUnique({
+    where: { id: req.params.id },
+    ...withCost,
+    include: { ...productInclude, variants: { orderBy: [{ color: "asc" }, { size: "asc" }] } },
+  });
+  if (!product) throw new AppError("Produto não encontrado", 404);
+  res.json(product);
 });
-/** Atualiza o produto e substitui o conjunto de variantes (numeração/cor/estoque). */
+adminRouter.post("/products", async (req, res) => {
+  const { variants, audienceIds, ...data } = productBody.parse(req.body);
+  const product = await prisma.$transaction(async (tx) => {
+    const created = await tx.product.create({
+      data: { ...data, audiences: { connect: audienceIds.map((id) => ({ id })) }, variants: { create: withSkus(data.slug, variants) } },
+      ...withCost,
+      include: productInclude,
+    });
+    for (const v of created.variants) {
+      if (v.stock > 0) await recordMovement(tx, { variantId: v.id, type: "ADJUSTMENT", quantity: v.stock, balance: v.stock, note: "Estoque inicial" });
+    }
+    return created;
+  });
+  res.status(201).json(product);
+});
+/**
+ * Atualiza o produto e sincroniza as variantes (numeração/cor/estoque): as que saíram da lista são
+ * removidas, salvo as já vendidas, e as demais mantêm o id para não quebrar sacolas em aberto.
+ */
 adminRouter.put("/products/:id", async (req, res) => {
-  const { variants, ...data } = productBody.parse(req.body);
+  const { variants: rawVariants, audienceIds, ...data } = productBody.parse(req.body);
+  const variants = withSkus(data.slug, rawVariants);
   const id = req.params.id;
-  const [, product] = await prisma.$transaction([
-    prisma.productVariant.deleteMany({ where: { productId: id, orderItems: { none: {} } } }),
-    prisma.product.update({
+  const kept = variants.map((v) => ({ size: v.size, color: v.color }));
+  const product = await prisma.$transaction(async (tx) => {
+    const before = await tx.productVariant.findMany({ where: { productId: id }, select: { size: true, color: true, stock: true } });
+    await tx.productVariant.deleteMany({
+      where: { productId: id, orderItems: { none: {} }, ...(kept.length > 0 && { NOT: { OR: kept } }) },
+    });
+    const updated = await tx.product.update({
       where: { id },
       data: {
         ...data,
+        audiences: { set: audienceIds.map((audienceId) => ({ id: audienceId })) },
         variants: {
           upsert: variants.map((v) => ({
             where: { productId_size_color: { productId: id, size: v.size, color: v.color } },
@@ -87,9 +261,18 @@ adminRouter.put("/products/:id", async (req, res) => {
           })),
         },
       },
-      include: { category: true, variants: true },
-    }),
-  ]);
+      ...withCost,
+      include: productInclude,
+    });
+    // Mudanças de estoque feitas pelo formulário entram no histórico como ajuste.
+    const previous = new Map(before.map((v) => [`${v.size}|${v.color}`, v.stock]));
+    for (const v of updated.variants) {
+      const known = previous.get(`${v.size}|${v.color}`);
+      const delta = v.stock - (known ?? 0);
+      if (delta !== 0) await recordMovement(tx, { variantId: v.id, type: "ADJUSTMENT", quantity: delta, balance: v.stock, note: known === undefined ? "Estoque inicial" : "Edição do produto" });
+    }
+    return updated;
+  });
   res.json(product);
 });
 adminRouter.delete("/products/:id", async (req, res) => {
@@ -156,16 +339,39 @@ adminRouter.delete("/showcases/:id", async (req, res) => {
   res.status(204).end();
 });
 
-/* Pedidos */
-adminRouter.get("/orders", async (_req, res) => {
-  res.json(
-    await prisma.order.findMany({
-      include: { profile: { select: { name: true, email: true } }, items: { include: { variant: { include: { product: true } } } } },
-      orderBy: { createdAt: "desc" },
-    }),
-  );
+/* Pedidos e expedição: modules/fulfillment */
+
+/* Conteúdo do site (topo, menu, faixa promocional, benefícios, rodapé) */
+adminRouter.get("/settings", async (_req, res) => {
+  res.json(await getSiteSettings());
 });
-adminRouter.patch("/orders/:id/status", async (req, res) => {
-  const { status } = z.object({ status: z.enum(["PENDING", "PAID", "SHIPPED", "DELIVERED", "CANCELED"]) }).parse(req.body);
-  res.json(await prisma.order.update({ where: { id: req.params.id }, data: { status } }));
+adminRouter.put("/settings", async (req, res) => {
+  res.json(await saveSiteSettings(req.body));
+});
+
+/* Resumo do painel */
+const LOW_STOCK = 3;
+adminRouter.get("/stats", async (_req, res) => {
+  const now = new Date();
+  const [activeProducts, inactiveProducts, lowStock, categories, campaigns, showcases, ordersByStatus] = await Promise.all([
+    prisma.product.count({ where: { active: true } }),
+    prisma.product.count({ where: { active: false } }),
+    prisma.productVariant.count({ where: { stock: { lte: LOW_STOCK }, product: { active: true } } }),
+    prisma.category.count(),
+    prisma.campaign.count({
+      where: {
+        active: true,
+        AND: [{ OR: [{ startsAt: null }, { startsAt: { lte: now } }] }, { OR: [{ endsAt: null }, { endsAt: { gte: now } }] }],
+      },
+    }),
+    prisma.showcase.count({ where: { active: true } }),
+    prisma.order.groupBy({ by: ["status"], _count: { _all: true } }),
+  ]);
+  res.json({
+    products: { active: activeProducts, inactive: inactiveProducts, lowStock, lowStockThreshold: LOW_STOCK },
+    categories,
+    campaigns,
+    showcases,
+    orders: Object.fromEntries(ordersByStatus.map((o) => [o.status, o._count._all])),
+  });
 });

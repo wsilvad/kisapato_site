@@ -3,6 +3,19 @@ import { z } from "zod";
 import { env } from "../config/env.js";
 import { AppError } from "../lib/errors.js";
 
+/** Erros previsíveis do Prisma viram respostas claras em vez de 500. */
+function knownPrismaError(err: unknown): { status: number; message: string } | null {
+  const { code, meta } = (err ?? {}) as { code?: unknown; meta?: { target?: unknown } };
+  if (typeof code !== "string") return null;
+  if (code === "P2002") {
+    const target = Array.isArray(meta?.target) ? meta.target.join(", ") : "valor informado";
+    return { status: 409, message: `Já existe um registro com esse ${target}` };
+  }
+  if (code === "P2003") return { status: 409, message: "Este registro está em uso por outros dados e não pode ser alterado ou removido" };
+  if (code === "P2025") return { status: 404, message: "Registro não encontrado" };
+  return null;
+}
+
 export const notFoundHandler: RequestHandler = (_req, res) => {
   res.status(404).json({ error: "Rota não encontrada" });
 };
@@ -15,6 +28,12 @@ export const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
 
   if (err instanceof AppError) {
     res.status(err.statusCode).json({ error: err.message });
+    return;
+  }
+
+  const prismaError = knownPrismaError(err);
+  if (prismaError) {
+    res.status(prismaError.status).json({ error: prismaError.message });
     return;
   }
 

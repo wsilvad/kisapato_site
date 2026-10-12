@@ -3,6 +3,8 @@ import { z } from "zod";
 import { AppError } from "../../lib/errors.js";
 import { prisma } from "../../lib/prisma.js";
 import { requireAuth } from "../../middlewares/auth.js";
+import { visibleProductWhere } from "../products/products.service.js";
+import { recordMovement } from "../stock/stock.service.js";
 
 export const ordersRouter = Router();
 ordersRouter.use(requireAuth);
@@ -27,29 +29,38 @@ ordersRouter.post("/", async (req, res) => {
 
   const order = await prisma.$transaction(async (tx) => {
     let total = 0;
-    const lines: { variantId: string; quantity: number; unitPrice: string }[] = [];
+    const lines: { variantId: string; quantity: number; unitPrice: string; unitCost: string | null }[] = [];
+    const balances: number[] = []; // saldo após cada linha, alinhado a `lines`
 
     for (const { variantId, quantity } of items) {
-      const variant = await tx.productVariant.findUnique({ where: { id: variantId }, include: { product: true } });
-      if (!variant || !variant.product.active) throw new AppError("Produto indisponível", 409);
+      // o custo é omitido por padrão; aqui ele é lido só para gravar o custo da época no item vendido
+      const variant = await tx.productVariant.findUnique({ where: { id: variantId }, include: { product: { omit: { costPrice: false } } } });
+      const available = variant ? await tx.product.count({ where: { AND: [visibleProductWhere, { id: variant.productId }] } }) : 0;
+      if (!variant || available === 0) throw new AppError("Produto indisponível", 409);
       const updated = await tx.productVariant.updateMany({
         where: { id: variantId, stock: { gte: quantity } },
         data: { stock: { decrement: quantity } },
       });
       if (updated.count === 0) throw new AppError(`Sem estoque de ${variant.product.name} (${variant.color}, ${variant.size})`, 409);
       total += Number(variant.product.price) * quantity;
-      lines.push({ variantId, quantity, unitPrice: variant.product.price.toString() });
+      lines.push({ variantId, quantity, unitPrice: variant.product.price.toString(), unitCost: variant.product.costPrice?.toString() ?? null });
+      balances.push(variant.stock - quantity);
     }
 
-    return tx.order.create({
+    const created = await tx.order.create({
       data: {
         profileId: req.auth!.sub,
         total: total.toFixed(2),
         shippingAddress,
         items: { create: lines },
+        events: { create: { status: "PENDING", note: "Pedido recebido" } },
       },
       include: { items: true },
     });
+    for (const [i, line] of lines.entries()) {
+      await recordMovement(tx, { variantId: line.variantId, type: "SALE", quantity: -line.quantity, balance: balances[i]!, orderId: created.id });
+    }
+    return created;
   });
 
   res.status(201).json(order);

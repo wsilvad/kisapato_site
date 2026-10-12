@@ -5,16 +5,9 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { formatPrice } from "@/lib/format";
+import { ORDER_STATUS, safeUrl } from "@/lib/order-status";
 import { useSession } from "@/lib/session";
 import type { Order } from "@/types/product";
-
-const STATUS: Record<Order["status"], string> = {
-  PENDING: "Aguardando pagamento",
-  PAID: "Pago",
-  SHIPPED: "Enviado",
-  DELIVERED: "Entregue",
-  CANCELED: "Cancelado",
-};
 
 export default function ContaPage() {
   const router = useRouter();
@@ -39,8 +32,14 @@ export default function ContaPage() {
         <ul className="order-list">
           {orders.map((o) => (
             <li key={o.id}>
-              <strong>#{o.id.slice(0, 8)}</strong> · {new Date(o.createdAt).toLocaleDateString("pt-BR")} · {STATUS[o.status]} · {formatPrice(o.total)}
+              <strong>#{o.id.slice(0, 8)}</strong> · {new Date(o.createdAt).toLocaleDateString("pt-BR")} · {ORDER_STATUS[o.status].label} · {formatPrice(o.total)}
               <ul>{o.items.map((i) => <li key={i.id}>{i.quantity}× {i.variant.product.name} ({i.variant.color}, {i.variant.size})</li>)}</ul>
+              {(o.trackingCode || safeUrl(o.trackingUrl)) && (
+                <p className="tracking-box">
+                  <strong>Rastreio{o.carrier ? ` · ${o.carrier}` : ""}:</strong> {o.trackingCode && <code>{o.trackingCode}</code>}{" "}
+                  {safeUrl(o.trackingUrl) && <a href={safeUrl(o.trackingUrl)!} target="_blank" rel="noopener noreferrer">Acompanhar entrega</a>}
+                </p>
+              )}
             </li>
           ))}
         </ul>

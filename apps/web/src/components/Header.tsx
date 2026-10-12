@@ -1,43 +1,35 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
+import { Logo } from "@/components/Logo";
 import { useCart } from "@/lib/cart";
 import { useSession } from "@/lib/session";
+import type { SiteSettings } from "@/types/product";
 
-const NAV_LINKS = [
-  { label: "Feminino", href: "/produtos" },
-  { label: "Masculino", href: "/produtos" },
-  { label: "Infantil", href: "/produtos" },
-  { label: "Marcas", href: "/produtos" },
-  { label: "Lançamentos", href: "/produtos" },
-];
-
-export function Header() {
+export function Header({ topbar, nav }: Pick<SiteSettings, "topbar" | "nav">) {
   const { count: cartCount } = useCart();
   const { user } = useSession();
   return (
     <header className="header">
-      <div className="topbar">
-        <span>Frete grátis acima de R$ [VALOR]</span>
-        <span>Até 6x sem juros</span>
-        <span>Retire grátis na loja</span>
-      </div>
+      {topbar.length > 0 && (
+        <div className="topbar">
+          {topbar.map((message) => (
+            <span key={message}>{message}</span>
+          ))}
+        </div>
+      )}
 
       <div className="header-main">
         <Link href="/" className="header-logo" aria-label="Ki Sapato — página inicial">
-          <Image src="/logo.png" alt="Ki Sapato" width={220} height={275} priority />
+          <Logo />
         </Link>
 
         <nav className="nav" aria-label="Principal">
-          {NAV_LINKS.map((link) => (
-            <Link key={link.label} href={link.href}>
+          {nav.map((link) => (
+            <Link key={`${link.label}-${link.url}`} href={link.url} className={link.highlight ? "nav-highlight" : undefined}>
               {link.label}
             </Link>
           ))}
-          <Link href="/produtos" className="nav-highlight">
-            Promoções
-          </Link>
         </nav>
 
         <div className="header-actions">

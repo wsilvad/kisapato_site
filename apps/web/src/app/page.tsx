@@ -1,27 +1,38 @@
 import Link from "next/link";
+import { HeroCarousel } from "@/components/HeroCarousel";
 import { ProductCard } from "@/components/ProductCard";
 import { api, assetUrl } from "@/lib/api";
-import { sampleHighlights, sampleLaunches } from "@/lib/sample-products";
-import type { Campaign, Product } from "@/types/product";
+import { loadSettings } from "@/lib/site-settings";
+import { sampleLaunches } from "@/lib/sample-products";
+import type { Campaign, Category, Product } from "@/types/product";
 
 export const dynamic = "force-dynamic";
 
-const CATEGORIES = ["Feminino", "Masculino", "Infantil"];
+interface Section {
+  id: string;
+  title: string;
+  products: Product[];
+}
 
-async function loadShowcase(): Promise<{ launches: Product[]; highlights: Product[]; campaign?: Campaign }> {
+async function loadHome(): Promise<{ campaigns: Campaign[]; categories: Category[]; sections: Section[] }> {
   try {
-    const { items } = await api.listProducts({ page: 1 });
-    const home = await api.home().catch(() => null);
-    if (items.length > 0) return { launches: items.slice(0, 4), highlights: items.slice(4, 8), campaign: home?.campaigns[0] };
+    const home = await api.home();
+    const sections = home.showcases
+      .filter((s) => s.products.length > 0)
+      .map((s) => ({ id: s.id, title: s.title, products: s.products }));
+    if (sections.length === 0) {
+      // Nenhuma vitrine configurada: mostra os produtos mais recentes para a home nunca ficar vazia.
+      const { items } = await api.listProducts({ page: 1 });
+      if (items.length > 0) sections.push({ id: "latest", title: "Lançamentos", products: items.slice(0, 4) });
+    }
+    return { campaigns: home.campaigns, categories: home.categories, sections };
   } catch {
     // API indisponível: usa os produtos de exemplo do protótipo
+    return { campaigns: [], categories: [], sections: [{ id: "sample", title: "Lançamentos", products: sampleLaunches }] };
   }
-  return { launches: sampleLaunches, highlights: sampleHighlights };
 }
 
 function ProductSection({ title, products }: { title: string; products: Product[] }) {
-  if (products.length === 0) return null;
-
   return (
     <section className="section">
       <div className="section-head">
@@ -40,101 +51,67 @@ function ProductSection({ title, products }: { title: string; products: Product[
 }
 
 export default async function HomePage() {
-  const { launches, highlights, campaign } = await loadShowcase();
-  const heroImage = assetUrl(campaign?.desktopImageUrl);
+  const [{ campaigns, categories, sections }, settings] = await Promise.all([loadHome(), loadSettings()]);
+  const { promo, benefits } = settings;
+  const [first, ...rest] = sections;
 
   return (
     <>
-      <section className="hero">
-        <div className="hero-copy">
-          <span className="hero-eyebrow">{campaign?.eyebrow ?? "Nova coleção · Primavera"}</span>
-          {campaign ? (
-            <h1 className="hero-title">{campaign.title}</h1>
-          ) : (
-            <h1 className="hero-title">
-              Passos que
-              <br />
-              combinam com
-              <br />
-              <i>você</i>
-            </h1>
-          )}
-          <p className="hero-text">
-            {campaign?.body ?? "Calçados para toda a família, das marcas que você confia, com retirada grátis na loja."}
-          </p>
-          <div className="hero-actions">
-            <Link href={campaign?.buttonUrl ?? "/produtos"} className="btn btn-solid">
-              {campaign?.buttonLabel ?? "Ver lançamentos"}
-            </Link>
-            <Link href="/produtos" className="btn btn-outline">
-              Todos os modelos
-            </Link>
+      <HeroCarousel campaigns={campaigns} />
+
+      {categories.length > 0 && (
+        <section className="section">
+          <h2 className="section-title section-title-center">Compre por categoria</h2>
+          <div className="category-grid">
+            {categories.map((category) => {
+              const image = assetUrl(category.imageUrl);
+              return (
+                <Link key={category.id} href={`/produtos?categoria=${category.slug}`} className="category-tile">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  {image && <img className="category-img" src={image} alt="" />}
+                  <div className="category-bar">
+                    <span className="category-name">{category.name}</span>
+                    <svg width="28" height="14" viewBox="0 0 28 14" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+                      <path d="M0 7h26M20 1l6 6-6 6" />
+                    </svg>
+                  </div>
+                </Link>
+              );
+            })}
           </div>
-        </div>
-        <div className="hero-media">
-          {heroImage ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={heroImage} alt={campaign?.title ?? ""} />
-          ) : (
-            "[Foto de campanha — 820 × 580]"
-          )}
-        </div>
-        <div className="hero-dots" aria-hidden="true">
-          <span className="is-active" />
-          <span />
-          <span />
-        </div>
-      </section>
+        </section>
+      )}
 
-      <section className="section">
-        <h2 className="section-title section-title-center">Compre por categoria</h2>
-        <div className="category-grid">
-          {CATEGORIES.map((name) => (
-            <Link key={name} href="/produtos" className="category-tile">
-              <span className="category-photo">[Foto {name}]</span>
-              <div className="category-bar">
-                <span className="category-name">{name}</span>
-                <svg width="28" height="14" viewBox="0 0 28 14" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
-                  <path d="M0 7h26M20 1l6 6-6 6" />
-                </svg>
-              </div>
+      {first && <ProductSection title={first.title} products={first.products} />}
+
+      {promo.active && promo.title && (
+        <section className="promo-banner">
+          <div className="promo-copy">
+            {promo.eyebrow && <span className="promo-eyebrow">{promo.eyebrow}</span>}
+            <span className="promo-title">{promo.title}</span>
+          </div>
+          {promo.buttonLabel && (
+            <Link href={promo.buttonUrl || "/produtos"} className="btn btn-light">
+              {promo.buttonLabel}
             </Link>
+          )}
+        </section>
+      )}
+
+      {rest.map((section) => (
+        <ProductSection key={section.id} title={section.title} products={section.products} />
+      ))}
+
+      {benefits.length > 0 && (
+        <section className="benefits">
+          {benefits.map((benefit) => (
+            <div key={benefit.title}>
+              <strong>{benefit.title}</strong>
+              {benefit.text && <span>{benefit.text}</span>}
+            </div>
           ))}
-        </div>
-      </section>
-
-      <ProductSection title="Lançamentos" products={launches} />
-
-      <section className="promo-banner">
-        <div className="promo-copy">
-          <span className="promo-eyebrow">Promoções da semana</span>
-          <span className="promo-title">Até [XX]% off</span>
-        </div>
-        <Link href="/produtos" className="btn btn-light">
-          Aproveitar
-        </Link>
-      </section>
-
-      <ProductSection title="Destaques" products={highlights} />
-
-      <section className="benefits">
-        <div>
-          <strong>Frete grátis</strong>
-          <span>Acima de R$ [VALOR]</span>
-        </div>
-        <div>
-          <strong>Retire na loja</strong>
-          <span>Sem custo, em [X] horas</span>
-        </div>
-        <div>
-          <strong>Até 6x sem juros</strong>
-          <span>Cartão, Pix ou boleto</span>
-        </div>
-        <div>
-          <strong>Troca fácil</strong>
-          <span>Primeira troca grátis</span>
-        </div>
-      </section>
+        </section>
+      )}
     </>
   );
 }

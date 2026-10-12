@@ -3,6 +3,7 @@ import { Cormorant_Garamond, Jost } from "next/font/google";
 import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
 import { Providers } from "@/components/Providers";
+import { loadSettings } from "@/lib/site-settings";
 import "./globals.css";
 
 const serif = Cormorant_Garamond({
@@ -24,14 +25,17 @@ export const metadata: Metadata = {
   description: "Calçados para toda a família, das marcas que você confia, com retirada grátis na loja.",
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export const dynamic = "force-dynamic";
+
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const settings = await loadSettings();
   return (
     <html lang="pt-BR" className={`${serif.variable} ${sans.variable}`}>
       <body>
         <Providers>
-          <Header />
+          <Header topbar={settings.topbar} nav={settings.nav} />
           <main>{children}</main>
-          <Footer />
+          <Footer footer={settings.footer} />
         </Providers>
       </body>
     </html>

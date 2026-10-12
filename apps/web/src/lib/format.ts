@@ -9,3 +9,11 @@ export function installmentText(value: string | number) {
   const installments = price < 300 ? 3 : 6;
   return `ou ${installments}x de ${formatPrice(price / installments)} sem juros`;
 }
+
+export const formatInt = (value: number) => new Intl.NumberFormat("pt-BR").format(value);
+
+export const formatPercent = (ratio: number, digits = 1) =>
+  new Intl.NumberFormat("pt-BR", { style: "percent", minimumFractionDigits: digits, maximumFractionDigits: digits }).format(ratio);
+
+/** AAAA-MM-DD → DD/MM/AAAA (sem passar por Date, para não deslocar o dia por fuso). */
+export const formatDay = (key: string) => key.split("-").reverse().join("/");

@@ -37,7 +37,7 @@ export default async function ProdutoPage({ params }: { params: Promise<{ slug: 
         {image && <img src={image} alt={product.name} />}
       </div>
       <div className="product-info">
-        <span className="card-brand">{product.brand ?? product.category.name}</span>
+        <span className="card-brand">{product.brand?.name ?? product.category.name}</span>
         <h1 className="page-title">{product.name}</h1>
         <p className="price">{formatPrice(product.price)}</p>
         <p className="card-installments">{installmentText(product.price)}</p>

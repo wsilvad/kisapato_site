@@ -15,7 +15,7 @@ function sample(
     id: slug,
     slug,
     name,
-    brand,
+    brand: { id: brand, name: brand, slug: brand.toLowerCase().replace(/\s+/g, "-"), sortOrder: 0 },
     price,
     description: null,
     images: [],
