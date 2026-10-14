@@ -22,6 +22,12 @@ interface CartValue {
   setQuantity: (variantId: string, quantity: number) => void;
   remove: (variantId: string) => void;
   clear: () => void;
+  /** Carrinho lateral (aparece ao adicionar um produto). */
+  drawerOpen: boolean;
+  openDrawer: () => void;
+  closeDrawer: () => void;
+  /** Última variação adicionada, para destacá-la na gaveta. */
+  lastAdded: string | null;
 }
 
 const CART_KEY = "ki-sapato:cart";
@@ -30,6 +36,8 @@ const CartContext = createContext<CartValue | null>(null);
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const [lines, setLines] = useState<CartLine[]>([]);
   const [ready, setReady] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [lastAdded, setLastAdded] = useState<string | null>(null);
 
   useEffect(() => {
     try {
@@ -46,6 +54,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   }, [lines, ready]);
 
   const add = useCallback<CartValue["add"]>((line, quantity = 1) => {
+    setLastAdded(line.variantId);
+    setDrawerOpen(true);
     setLines((current) => {
       const existing = current.find((l) => l.variantId === line.variantId);
       if (!existing) return [...current, { ...line, quantity: Math.min(quantity, line.stock) }];
@@ -73,8 +83,15 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       setQuantity,
       remove,
       clear,
+      drawerOpen,
+      openDrawer: () => {
+        setLastAdded(null);
+        setDrawerOpen(true);
+      },
+      closeDrawer: () => setDrawerOpen(false),
+      lastAdded,
     }),
-    [lines, add, setQuantity, remove, clear],
+    [lines, add, setQuantity, remove, clear, drawerOpen, lastAdded],
   );
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;

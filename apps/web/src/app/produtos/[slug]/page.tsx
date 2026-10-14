@@ -1,8 +1,11 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
-import { AddToCart } from "@/components/AddToCart";
-import { api, assetUrl } from "@/lib/api";
-import { formatPrice, installmentText } from "@/lib/format";
+import { ProductCard } from "@/components/ProductCard";
+import { ProductGallery } from "@/components/ProductGallery";
+import { AboutProduct } from "@/components/pdp/AboutProduct";
+import { ProductInfo } from "@/components/pdp/ProductInfo";
+import { api } from "@/lib/api";
 import type { Product } from "@/types/product";
 
 export const dynamic = "force-dynamic";
@@ -15,40 +18,58 @@ async function getProduct(slug: string): Promise<Product | null> {
   }
 }
 
-export async function generateMetadata({
-  params,
-}: {
-  params: Promise<{ slug: string }>;
-}): Promise<Metadata> {
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const product = await getProduct((await params).slug);
   return { title: product?.name ?? "Produto" };
 }
 
 export default async function ProdutoPage({ params }: { params: Promise<{ slug: string }> }) {
-  const product = await getProduct((await params).slug);
+  const { slug } = await params;
+  const product = await getProduct(slug);
   if (!product) notFound();
 
-  const image = assetUrl(product.images[0]);
+  // "Compre junto" é um complemento: se falhar, a página abre normalmente sem ele.
+  const related = await api.relatedProducts(slug).catch(() => [] as Product[]);
+
+  const specs = [
+    product.brand?.name && { label: "Marca", value: product.brand.name },
+    { label: "Categoria", value: product.category.name },
+    (product.audiences?.length ?? 0) > 0 && { label: "Público", value: product.audiences!.map((a) => a.name).join(", ") },
+    product.reference && { label: "Referência", value: product.reference },
+  ].filter(Boolean) as { label: string; value: string }[];
 
   return (
-    <div className="page product">
-      <div className="product-media">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        {image && <img src={image} alt={product.name} />}
+    <div className="page pdp">
+      <nav className="crumbs" aria-label="Você está em">
+        <Link href="/">Início</Link>
+        <span aria-hidden="true">›</span>
+        <Link href="/produtos">Produtos</Link>
+        <span aria-hidden="true">›</span>
+        <Link href={`/produtos?categoria=${product.category.slug}`}>{product.category.name}</Link>
+        <span aria-hidden="true">›</span>
+        <span aria-current="page">{product.name}</span>
+      </nav>
+
+      <div className="pdp-grid">
+        <div className="product-media">
+          <ProductGallery images={product.images} name={product.name} />
+        </div>
+        <ProductInfo product={product} />
       </div>
-      <div className="product-info">
-        <span className="card-brand">{product.brand?.name ?? product.category.name}</span>
-        <h1 className="page-title">{product.name}</h1>
-        <p className="price">{formatPrice(product.price)}</p>
-        <p className="card-installments">{installmentText(product.price)}</p>
-        {product.description && <p>{product.description}</p>}
-        <AddToCart product={product} />
-        {product.careInstructions && (
-          <p>
-            <strong>Cuidados:</strong> {product.careInstructions}
-          </p>
-        )}
-      </div>
+
+      <AboutProduct description={product.description} care={product.careInstructions ?? null} specs={specs} />
+
+      {related.length > 0 && (
+        <section className="related" aria-labelledby="related-title">
+          <h2 id="related-title" className="section-title">Compre junto</h2>
+          <p className="related-hint">Peças de outras categorias que combinam com {product.name}.</p>
+          <div className="product-grid">
+            {related.map((p) => (
+              <ProductCard key={p.id} product={p} />
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   );
 }

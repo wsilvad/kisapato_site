@@ -5,9 +5,11 @@ import type { SiteSettings } from "@/types/product";
 export const fallbackSettings: SiteSettings = {
   topbar: ["Frete grátis acima de R$ 299", "Até 6x sem juros", "Retire grátis na loja"],
   nav: [
-    { label: "Todos os modelos", url: "/produtos", highlight: false },
-    { label: "Promoções", url: "/produtos", highlight: true },
+    { label: "Todos os produtos", url: "/produtos", highlight: false },
+    { label: "Lançamentos", url: "/produtos?selo=lancamento", highlight: false },
+    { label: "Promoções", url: "/produtos?selo=promocao", highlight: true },
   ],
+  shipping: { freeAbove: 0, pickup: { active: true, label: "Retirar na loja", note: "" }, regions: [] },
   promo: { active: false, eyebrow: "", title: "", buttonLabel: "", buttonUrl: "" },
   benefits: [],
   footer: { columns: [], storeTitle: "Nossas lojas", address: "", phone: "", hours: "", cnpj: "", payments: "" },

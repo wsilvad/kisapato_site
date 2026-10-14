@@ -22,3 +22,4 @@ apps/api/src/generated/
 .DS_Store
 apps/api/uploads/
 /uploads/
+apps/api/uploads-originais/

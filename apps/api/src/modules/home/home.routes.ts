@@ -7,7 +7,7 @@ export const homeRouter = Router();
 /** Banners vigentes, vitrines já com os produtos selecionados pela regra (selo) e categorias em destaque. */
 homeRouter.get("/", async (_req, res) => {
   const now = new Date();
-  const [campaigns, showcases, categories] = await Promise.all([
+  const [campaigns, showcases, categories, audiences] = await Promise.all([
     prisma.campaign.findMany({
       where: {
         active: true,
@@ -20,6 +20,7 @@ homeRouter.get("/", async (_req, res) => {
     }),
     prisma.showcase.findMany({ where: { active: true }, orderBy: { sortOrder: "asc" } }),
     prisma.category.findMany({ where: { showOnHome: true, active: true, OR: [{ classId: null }, { productClass: { active: true } }] }, orderBy: [{ sortOrder: "asc" }, { name: "asc" }] }),
+    prisma.audience.findMany({ where: { imageUrl: { not: null } }, orderBy: [{ sortOrder: "asc" }, { name: "asc" }] }),
   ]);
 
   const withProducts = await Promise.all(
@@ -34,5 +35,5 @@ homeRouter.get("/", async (_req, res) => {
     })),
   );
 
-  res.json({ campaigns, showcases: withProducts, categories });
+  res.json({ campaigns, showcases: withProducts, categories, audiences });
 });

@@ -23,6 +23,7 @@ export interface Audience {
   id: string;
   name: string;
   slug: string;
+  imageUrl?: string | null;
   sortOrder: number;
   _count?: { products: number };
 }
@@ -73,6 +74,24 @@ export interface Product {
   variants?: ProductVariant[];
 }
 
+/** Opção de filtro com a quantidade de produtos que ela traz. */
+export interface FacetOption {
+  name: string;
+  slug: string;
+  count: number;
+}
+
+/** Opções do painel "Filtrar por", calculadas para a seleção atual (lançamentos, promoções…). */
+export interface Facets {
+  audiences: FacetOption[];
+  categories: FacetOption[];
+  brands: FacetOption[];
+  colors: string[];
+  sizes: number[];
+  price: { min: number; max: number } | null;
+  total: number;
+}
+
 export interface Paginated<T> {
   items: T[];
   page: number;
@@ -108,6 +127,13 @@ export interface Campaign {
   buttonUrl: string | null;
   desktopImageUrl: string | null;
   mobileImageUrl: string | null;
+  /** Enquadramento da foto (foco em %, zoom 1–3). Ausente = centralizada, sem zoom. */
+  desktopFocusX?: number;
+  desktopFocusY?: number;
+  desktopZoom?: number;
+  mobileFocusX?: number;
+  mobileFocusY?: number;
+  mobileZoom?: number;
   sortOrder: number;
   active: boolean;
 }
@@ -161,7 +187,34 @@ export interface SiteLink {
 }
 
 /** Conteúdo editável do site; espelha modules/settings/settings.schemas.ts da API. */
+export interface ShippingRegion {
+  name: string;
+  states: string[];
+  price: number;
+  minDays: number;
+  maxDays: number;
+}
+
+export interface ShippingOption {
+  id: string;
+  label: string;
+  /** 0 = grátis. */
+  price: number;
+  minDays: number;
+  maxDays: number;
+  note?: string;
+}
+
+export interface ShippingQuote {
+  cep: string;
+  state: string;
+  place: string;
+  options: ShippingOption[];
+  freeShippingMissing: number | null;
+}
+
 export interface SiteSettings {
+  shipping: { freeAbove: number; pickup: { active: boolean; label: string; note: string }; regions: ShippingRegion[] };
   topbar: string[];
   nav: (SiteLink & { highlight: boolean })[];
   promo: { active: boolean; eyebrow: string; title: string; buttonLabel: string; buttonUrl: string };

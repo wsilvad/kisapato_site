@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { assetUrl } from "@/lib/api";
+import { cropVars } from "@/lib/crop";
 import type { Campaign } from "@/types/product";
 
 const ROTATE_MS = 6000;
@@ -43,7 +44,7 @@ export function HeroCarousel({ campaigns }: { campaigns: Campaign[] }) {
         {desktop ? (
           <picture>
             {mobile && <source media="(max-width: 720px)" srcSet={mobile} />}
-            <img src={desktop} alt={campaign?.title ?? ""} />
+            <img src={desktop} alt={campaign?.title ?? ""} style={cropVars(campaign)} />
           </picture>
         ) : null}
       </div>

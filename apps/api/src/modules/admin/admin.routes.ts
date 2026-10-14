@@ -61,7 +61,7 @@ adminRouter.delete("/classes/:id", async (req, res) => {
 });
 
 /* Públicos-alvo (Feminino, Masculino, Infantil…) */
-const audienceBody = classBody;
+const audienceBody = classBody.extend({ imageUrl: z.string().nullish() });
 
 adminRouter.get("/audiences", async (_req, res) => {
   res.json(
@@ -288,6 +288,8 @@ adminRouter.delete("/products/:id", async (req, res) => {
 
 /* Campanhas */
 const date = z.coerce.date().nullish();
+const focus = z.coerce.number().min(0).max(100).default(50);
+const zoom = z.coerce.number().min(1).max(3).default(1);
 const campaignBody = z.object({
   eyebrow: z.string().nullish(),
   title: z.string().trim().min(1),
@@ -296,6 +298,12 @@ const campaignBody = z.object({
   buttonUrl: z.string().nullish(),
   desktopImageUrl: z.string().nullish(),
   mobileImageUrl: z.string().nullish(),
+  desktopFocusX: focus,
+  desktopFocusY: focus,
+  desktopZoom: zoom,
+  mobileFocusX: focus,
+  mobileFocusY: focus,
+  mobileZoom: zoom,
   startsAt: date,
   endsAt: date,
   sortOrder: z.coerce.number().int().default(0),

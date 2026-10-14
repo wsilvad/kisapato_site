@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Badge, ConfirmButton, EmptyState, MoveButtons, Notice, PageHead, RowSwitch, SlugField, reorder, slugify, useAdminList } from "./kit";
+import { Badge, ConfirmButton, EmptyState, ImageField, MoveButtons, Notice, PageHead, RowSwitch, SlugField, Thumb, reorder, slugify, useAdminList } from "./kit";
 import { api } from "@/lib/api";
 
 interface Item {
@@ -9,6 +9,7 @@ interface Item {
   name: string;
   slug: string;
   sortOrder: number;
+  imageUrl?: string | null;
   active?: boolean;
   _count?: Record<string, number>;
 }
@@ -27,14 +28,21 @@ interface Props {
   placeholder: string;
   /** Quando informado, a tabela ganha o interruptor ativo/inativo; recebe a quantidade afetada e devolve o aviso. */
   activatable?: { warn: (name: string, count: number) => string };
+  /** Quando informado, cada item tem uma foto (usada no cartão da home); a dica orienta o formato. */
+  imageHint?: string;
 }
 
-const body = (i: { name: string; slug: string; sortOrder: number }) => ({ name: i.name.trim(), slug: i.slug, sortOrder: i.sortOrder });
+const body = (i: { name: string; slug: string; sortOrder: number; imageUrl?: string | null }, withImage: boolean) => ({
+  name: i.name.trim(),
+  slug: i.slug,
+  sortOrder: i.sortOrder,
+  ...(withImage && { imageUrl: i.imageUrl ?? null }),
+});
 
 /** CRUD simples de uma lista ordenável (nome + endereço), usado por Classes e Públicos-alvo. */
-export function TaxonomyAdmin({ resource, title, hint, noun, newLabel, usage, deleteMessage, placeholder, activatable }: Props) {
+export function TaxonomyAdmin({ resource, title, hint, noun, newLabel, usage, deleteMessage, placeholder, activatable, imageHint }: Props) {
   const { items, setItems, loading, error, setError, reload } = useAdminList<Item>(resource);
-  const [editing, setEditing] = useState<{ id?: string; name: string; slug: string; slugTouched: boolean; sortOrder: number } | null>(null);
+  const [editing, setEditing] = useState<{ id?: string; name: string; slug: string; slugTouched: boolean; sortOrder: number; imageUrl?: string | null } | null>(null);
   const [formError, setFormError] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -53,8 +61,8 @@ export function TaxonomyAdmin({ resource, title, hint, noun, newLabel, usage, de
     if (!editing.name.trim() || !editing.slug) return setFormError(`Informe o nome d${newLabel === "Nova" ? "a" : "o"} ${noun}.`);
     setSaving(true);
     try {
-      if (editing.id) await api.admin.update(resource, editing.id, body(editing));
-      else await api.admin.create(resource, body(editing));
+      if (editing.id) await api.admin.update(resource, editing.id, body(editing, !!imageHint));
+      else await api.admin.create(resource, body(editing, !!imageHint));
       setEditing(null);
       setFormError("");
       await reload();
@@ -88,6 +96,7 @@ export function TaxonomyAdmin({ resource, title, hint, noun, newLabel, usage, de
             <input value={editing.name} required placeholder={placeholder} onChange={(e) => setEditing((cur) => cur && { ...cur, name: e.target.value, slug: cur.slugTouched ? cur.slug : slugify(e.target.value) })} />
           </label>
           <SlugField value={editing.slug} name={editing.name} prefix={`/produtos?${{ classes: "classe", audiences: "publico", brands: "marca" }[resource]}=`} onChange={(slug) => setEditing((cur) => cur && { ...cur, slug, slugTouched: true })} />
+          {imageHint && <ImageField label="Foto na home" value={editing.imageUrl} onChange={(imageUrl) => setEditing((cur) => cur && { ...cur, imageUrl })} hint={imageHint} />}
         </fieldset>
         <Notice error={formError} />
         <div className="form-actions">
@@ -113,11 +122,12 @@ export function TaxonomyAdmin({ resource, title, hint, noun, newLabel, usage, de
       ) : (
         <div className="table-wrap">
           <table className="table">
-            <thead><tr><th>Ordem</th><th>Nome</th><th>{usage.label[0]!.toUpperCase() + usage.label.slice(1)}</th>{activatable && <th>Situação</th>}<th /></tr></thead>
+            <thead><tr><th>Ordem</th>{imageHint && <th>Foto</th>}<th>Nome</th><th>{usage.label[0]!.toUpperCase() + usage.label.slice(1)}</th>{activatable && <th>Situação</th>}<th /></tr></thead>
             <tbody>
               {items.map((item, i) => (
                 <tr key={item.id} className={item.active === false ? "is-off" : undefined}>
-                  <td><MoveButtons index={i} total={items.length} onMove={(d) => run(() => reorder(items, i, d, (x) => api.admin.update(resource, x.id, body(x))))} /></td>
+                  <td><MoveButtons index={i} total={items.length} onMove={(d) => run(() => reorder(items, i, d, (x) => api.admin.update(resource, x.id, body(x, !!imageHint))))} /></td>
+                  {imageHint && <td><Thumb url={item.imageUrl} /></td>}
                   <td><strong>{item.name}</strong><br /><small>{item.slug}</small></td>
                   <td>{item._count?.[usage.key] ?? 0}</td>
                   {activatable && (
@@ -129,7 +139,7 @@ export function TaxonomyAdmin({ resource, title, hint, noun, newLabel, usage, de
                     </td>
                   )}
                   <td className="row-actions">
-                    <button type="button" className="link-btn" onClick={() => setEditing({ id: item.id, name: item.name, slug: item.slug, slugTouched: true, sortOrder: item.sortOrder })}>Editar</button>
+                    <button type="button" className="link-btn" onClick={() => setEditing({ id: item.id, name: item.name, slug: item.slug, slugTouched: true, sortOrder: item.sortOrder, imageUrl: item.imageUrl })}>Editar</button>
                     <ConfirmButton message={deleteMessage} onConfirm={() => run(() => api.admin.remove(resource, item.id))}>Excluir</ConfirmButton>
                   </td>
                 </tr>

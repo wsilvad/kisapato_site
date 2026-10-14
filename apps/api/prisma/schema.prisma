@@ -79,6 +79,8 @@ model Audience {
   id        String    @id @default(uuid())
   name      String
   slug      String    @unique
+  /// Foto do cartão "Compre por público" na home; sem foto, o público não aparece lá.
+  imageUrl  String?
   sortOrder Int       @default(0)
   products  Product[]
 
@@ -197,6 +199,13 @@ model Campaign {
   buttonUrl       String?
   desktopImageUrl String?
   mobileImageUrl  String?
+  /// Enquadramento da foto (ponto de foco em % e zoom) para computador e celular, definido no editor do admin.
+  desktopFocusX   Float     @default(50)
+  desktopFocusY   Float     @default(50)
+  desktopZoom     Float     @default(1)
+  mobileFocusX    Float     @default(50)
+  mobileFocusY    Float     @default(50)
+  mobileZoom      Float     @default(1)
   startsAt        DateTime?
   endsAt          DateTime?
   sortOrder       Int       @default(0)

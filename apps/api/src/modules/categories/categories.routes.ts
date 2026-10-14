@@ -1,11 +1,21 @@
 import { Router } from "express";
+import { z } from "zod";
 import { prisma } from "../../lib/prisma.js";
+import { seloWhere, visibleProductWhere } from "../products/products.service.js";
 
 export const categoriesRouter = Router();
 
-categoriesRouter.get("/", async (_req, res) => {
+/** Categorias ativas; com `?selo=` e/ou `?audience=` só as que têm produtos visíveis naquela seleção (menu da loja). */
+categoriesRouter.get("/", async (req, res) => {
+  const { selo, audience } = z.object({ selo: z.enum(["lancamento", "promocao", "destaque"]).optional(), audience: z.string().optional() }).parse(req.query);
   const categories = await prisma.category.findMany({
-    where: { active: true, OR: [{ classId: null }, { productClass: { active: true } }] },
+    where: {
+      active: true,
+      OR: [{ classId: null }, { productClass: { active: true } }],
+      ...((selo || audience) && {
+        products: { some: { AND: [visibleProductWhere, ...(selo ? [seloWhere(selo)] : []), ...(audience ? [{ audiences: { some: { slug: audience } } }] : [])] } },
+      }),
+    },
     include: { productClass: true },
     orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
   });

@@ -1,0 +1,7 @@
+-- Enquadramento (foco + zoom) da foto da campanha, separado para computador e celular.
+ALTER TABLE "campaigns" ADD COLUMN "desktopFocusX" DOUBLE PRECISION NOT NULL DEFAULT 50;
+ALTER TABLE "campaigns" ADD COLUMN "desktopFocusY" DOUBLE PRECISION NOT NULL DEFAULT 50;
+ALTER TABLE "campaigns" ADD COLUMN "desktopZoom" DOUBLE PRECISION NOT NULL DEFAULT 1;
+ALTER TABLE "campaigns" ADD COLUMN "mobileFocusX" DOUBLE PRECISION NOT NULL DEFAULT 50;
+ALTER TABLE "campaigns" ADD COLUMN "mobileFocusY" DOUBLE PRECISION NOT NULL DEFAULT 50;
+ALTER TABLE "campaigns" ADD COLUMN "mobileZoom" DOUBLE PRECISION NOT NULL DEFAULT 1;

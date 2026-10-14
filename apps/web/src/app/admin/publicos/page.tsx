@@ -13,6 +13,7 @@ export default function AudiencesAdmin() {
       usage={{ key: "products", label: "produtos" }}
       deleteMessage="Excluir público? Os produtos continuam cadastrados."
       placeholder="Feminino"
+      imageHint="Aparece em “Compre por público” na home. Sem foto, o público não aparece lá. Formato vertical, ao menos 800 × 920 px."
     />
   );
 }

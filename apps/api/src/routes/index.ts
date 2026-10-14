@@ -7,6 +7,7 @@ import { homeRouter } from "../modules/home/home.routes.js";
 import { ordersRouter } from "../modules/orders/orders.routes.js";
 import { productsRouter } from "../modules/products/products.routes.js";
 import { settingsRouter } from "../modules/settings/settings.routes.js";
+import { shippingRouter } from "../modules/shipping/shipping.routes.js";
 import { uploadsRouter } from "../modules/uploads/uploads.routes.js";
 
 export const routes = Router();
@@ -19,6 +20,7 @@ routes.use("/brands", brandsRouter);
 routes.use("/products", productsRouter);
 routes.use("/home", homeRouter);
 routes.use("/settings", settingsRouter);
+routes.use("/shipping", shippingRouter);
 routes.use("/auth", authRouter);
 routes.use("/orders", ordersRouter);
 routes.use("/admin", adminRouter);

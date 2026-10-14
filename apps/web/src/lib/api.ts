@@ -1,4 +1,5 @@
-import type { AdminStats, Audience, Brand, Campaign, Category, CustomerStat, DashFilters, Inventory, Order, Overview, StockMovement, Paginated, Product, ProductClass, Showcase, SiteSettings, User } from "@/types/product";
+import { getAdminToken } from "@/lib/admin-session";
+import type { AdminStats, Audience, Brand, Campaign, Category, CustomerStat, DashFilters, Facets, Inventory, Order, Overview, StockMovement, Paginated, Product, ProductClass, Showcase, ShippingQuote, SiteSettings, User } from "@/types/product";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3333/api";
 /** Origem da API (sem /api), usada para servir as fotos enviadas em /uploads. */
@@ -7,6 +8,12 @@ const API_ORIGIN = API_URL.replace(/\/api\/?$/, "");
 export function assetUrl(path: string | null | undefined) {
   if (!path) return undefined;
   return path.startsWith("/uploads/") ? `${API_ORIGIN}${path}` : path;
+}
+
+/** Miniatura de uma foto enviada pelo admin (`/uploads/x.jpg` → `x-thumb.jpg`); outras origens ficam como estão. */
+export function thumbUrl(path: string | null | undefined) {
+  if (!path || !path.startsWith("/uploads/")) return assetUrl(path);
+  return assetUrl(path.replace(/\.[a-z0-9]+$/i, "-thumb.jpg"));
 }
 
 export const TOKEN_KEY = "ki-sapato:token";
@@ -20,11 +27,12 @@ export class ApiError extends Error {
   }
 }
 
-async function request<T>(path: string, init: RequestInit & { json?: unknown } = {}): Promise<T> {
+/** Chamadas de /admin usam a sessão do painel (por aba); as demais, a sessão do cliente da loja. */
+async function request<T>(path: string, init: RequestInit & { json?: unknown; admin?: boolean } = {}): Promise<T> {
   const headers = new Headers(init.headers);
   if (init.json !== undefined) headers.set("Content-Type", "application/json");
   if (typeof window !== "undefined") {
-    const token = window.localStorage.getItem(TOKEN_KEY);
+    const token = init.admin || path.startsWith("/admin") ? getAdminToken() : window.localStorage.getItem(TOKEN_KEY);
     if (token) headers.set("Authorization", `Bearer ${token}`);
   }
 
@@ -58,25 +66,43 @@ export interface ShippingAddress {
 }
 
 export const api = {
-  listProducts(params: { page?: number; category?: string; productClass?: string; audience?: string; brand?: string; search?: string } = {}) {
+  /** `category`, `audience`, `brand`, `color` e `size` aceitam vários valores separados por vírgula. */
+  listProducts(params: { page?: number; pageSize?: number; category?: string; productClass?: string; audience?: string; brand?: string; color?: string; size?: string; minPrice?: string; maxPrice?: string; sort?: string; selo?: string; slugs?: string; search?: string } = {}) {
     const query = new URLSearchParams();
     for (const [key, value] of Object.entries(params)) {
       if (value !== undefined) query.set(key, String(value));
     }
     return request<Paginated<Product>>(`/products?${query}`);
   },
+  /** Opções do painel de filtros para a seleção (`selo`/`search`) informada. */
+  productFacets(params: { selo?: string; search?: string } = {}) {
+    const query = new URLSearchParams();
+    for (const [key, value] of Object.entries(params)) if (value) query.set(key, value);
+    return request<Facets>(`/products/facets?${query}`);
+  },
   getProduct: (slug: string) => request<Product>(`/products/${encodeURIComponent(slug)}`),
-  listCategories: () => request<Category[]>("/categories"),
+  /** Com `selo`, só as categorias que têm produtos naquela seleção (menu da loja). */
+  listCategories(selo?: string, audience?: string) {
+    const query = new URLSearchParams();
+    if (selo) query.set("selo", selo);
+    if (audience) query.set("audience", audience);
+    return request<Category[]>(`/categories${query.size ? `?${query}` : ""}`);
+  },
+  /** "Compre junto": peças de outras categorias que combinam com o produto. */
+  relatedProducts: (slug: string) => request<Product[]>(`/products/${encodeURIComponent(slug)}/related`),
+  shippingQuote: (cep: string, subtotal: number) => request<ShippingQuote>(`/shipping/quote?${new URLSearchParams({ cep, subtotal: String(subtotal) })}`),
   listClasses: () => request<ProductClass[]>("/classes"),
   listAudiences: () => request<Audience[]>("/audiences"),
   listBrands: () => request<Brand[]>("/brands"),
-  home: () => request<{ campaigns: Campaign[]; showcases: Required<Showcase>[]; categories: Category[] }>("/home"),
+  home: () => request<{ campaigns: Campaign[]; showcases: Required<Showcase>[]; categories: Category[]; audiences: Audience[] }>("/home"),
   settings: () => request<SiteSettings>("/settings"),
 
   register: (data: { name: string; email: string; phone?: string; password: string }) =>
     request<AuthResult>("/auth/register", { method: "POST", json: data }),
   login: (data: { email: string; password: string }) => request<AuthResult>("/auth/login", { method: "POST", json: data }),
   me: () => request<User>("/auth/me"),
+  /** Confere a sessão do painel (token da aba) e devolve o usuário. */
+  adminMe: () => request<User>("/auth/me", { admin: true }),
 
   createOrder: (data: { items: { variantId: string; quantity: number }[]; shippingAddress: ShippingAddress }) =>
     request<Order>("/orders", { method: "POST", json: data }),

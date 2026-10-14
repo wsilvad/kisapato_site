@@ -3,6 +3,7 @@ import { Cormorant_Garamond, Jost } from "next/font/google";
 import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
 import { Providers } from "@/components/Providers";
+import { StoreFrame } from "@/components/StoreFrame";
 import { loadSettings } from "@/lib/site-settings";
 import "./globals.css";
 
@@ -32,10 +33,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang="pt-BR" className={`${serif.variable} ${sans.variable}`}>
       <body>
-        <Providers>
-          <Header topbar={settings.topbar} nav={settings.nav} />
-          <main>{children}</main>
-          <Footer footer={settings.footer} />
+        <Providers freeShippingAbove={settings.shipping.freeAbove}>
+          <StoreFrame header={<Header topbar={settings.topbar} nav={settings.nav} />} footer={<Footer footer={settings.footer} />}>
+            {children}
+          </StoreFrame>
         </Providers>
       </body>
     </html>

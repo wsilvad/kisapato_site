@@ -4,7 +4,38 @@ const text = (max = 200) => z.string().trim().max(max).default("");
 const link = z.object({ label: z.string().trim().min(1).max(60), url: z.string().trim().min(1).max(300) });
 
 /** Conteúdo editável do site. Cada bloco tem padrão, então um banco vazio já renderiza a loja. */
+const shippingRegion = z.object({
+  name: z.string().trim().min(1).max(40),
+  states: z.array(z.string().trim().toUpperCase().length(2)).min(1).max(27),
+  price: z.coerce.number().min(0).max(10_000),
+  minDays: z.coerce.number().int().min(0).max(60),
+  maxDays: z.coerce.number().int().min(0).max(90),
+});
+
+/** Frete: tabela por região (estados), frete grátis acima de um valor e retirada na loja. */
+const shippingSchema = z.object({
+  /** Valor da compra a partir do qual a entrega é grátis (0 = não existe frete grátis). */
+  freeAbove: z.coerce.number().min(0).max(100_000),
+  pickup: z.object({ active: z.boolean(), label: z.string().trim().min(1).max(60), note: z.string().trim().max(120) }),
+  regions: z.array(shippingRegion).max(12),
+});
+
+export const defaultShipping: z.infer<typeof shippingSchema> = {
+  freeAbove: 299,
+  pickup: { active: true, label: "Retirar na loja", note: "Sem custo. Avisamos quando estiver pronto." },
+  // Valores iniciais de exemplo: ajuste no painel (Textos e menu → Frete) conforme o contrato com a transportadora.
+  regions: [
+    { name: "Rio Grande do Sul", states: ["RS"], price: 18.9, minDays: 2, maxDays: 5 },
+    { name: "Sul", states: ["SC", "PR"], price: 24.9, minDays: 3, maxDays: 6 },
+    { name: "Sudeste", states: ["SP", "RJ", "MG", "ES"], price: 29.9, minDays: 4, maxDays: 8 },
+    { name: "Centro-Oeste", states: ["DF", "GO", "MT", "MS"], price: 36.9, minDays: 5, maxDays: 10 },
+    { name: "Nordeste", states: ["BA", "SE", "AL", "PE", "PB", "RN", "CE", "PI", "MA"], price: 39.9, minDays: 7, maxDays: 12 },
+    { name: "Norte", states: ["AM", "PA", "AC", "RO", "RR", "AP", "TO"], price: 49.9, minDays: 9, maxDays: 15 },
+  ],
+};
+
 export const siteSettingsSchema = z.object({
+  shipping: shippingSchema.default(defaultShipping),
   /** Mensagens da barra preta no topo. */
   topbar: z.array(z.string().trim().min(1).max(120)).max(4).default([]),
   /** Links do menu principal; `highlight` pinta o item (ex.: Promoções). */
@@ -41,10 +72,11 @@ export const SETTINGS_KEY = "site";
 export const defaultSiteSettings: SiteSettings = {
   topbar: ["Frete grátis acima de R$ 299", "Até 6x sem juros", "Retire grátis na loja"],
   nav: [
-    { label: "Todos os modelos", url: "/produtos", highlight: false },
-    { label: "Lançamentos", url: "/produtos", highlight: false },
-    { label: "Promoções", url: "/produtos", highlight: true },
+    { label: "Todos os produtos", url: "/produtos", highlight: false },
+    { label: "Lançamentos", url: "/produtos?selo=lancamento", highlight: false },
+    { label: "Promoções", url: "/produtos?selo=promocao", highlight: true },
   ],
+  shipping: defaultShipping,
   promo: {
     active: true,
     eyebrow: "Promoções da semana",

@@ -25,7 +25,7 @@ export default function AuthPage() {
           ? await api.login({ email, password })
           : await api.register({ email, password, name: String(f.get("name")), phone: String(f.get("phone") || "") || undefined });
       signIn(result);
-      router.push(result.user.role === "ADMIN" ? "/admin" : "/conta");
+      router.push("/conta"); // o login da loja nunca leva ao painel
     } catch (err) {
       setError(err instanceof Error ? err.message : "Falha ao entrar");
     } finally {

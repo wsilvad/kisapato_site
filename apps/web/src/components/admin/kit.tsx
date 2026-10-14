@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
-import { api, assetUrl } from "@/lib/api";
+import { api, assetUrl, thumbUrl } from "@/lib/api";
 
 export const slugify = (value: string) =>
   value.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
@@ -43,7 +43,7 @@ export function useAdminList<T>(resource: Resource) {
 
 /** Miniatura para tabelas; sem imagem mostra um quadro vazio. */
 export function Thumb({ url, wide }: { url: string | null | undefined; wide?: boolean }) {
-  const src = assetUrl(url);
+  const src = thumbUrl(url);
   const className = `thumb${wide ? " thumb-wide" : ""}`;
   // eslint-disable-next-line @next/next/no-img-element
   return src ? <img className={className} src={src} alt="" /> : <span className={`${className} thumb-empty`} />;
@@ -201,7 +201,7 @@ export function ImageGallery({ value, onChange }: { value: string[]; onChange: (
         {value.map((url, i) => (
           <figure key={url} className="gallery-item">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={assetUrl(url)} alt="" />
+            <img src={thumbUrl(url)} alt="" />
             {i === 0 && <figcaption>Principal</figcaption>}
             <div className="gallery-actions">
               <button type="button" aria-label="Mover para trás" disabled={i === 0} onClick={() => move(i, i - 1)}>←</button>

@@ -1,82 +1,96 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ProductCard } from "@/components/ProductCard";
+import { ProductFilters, type FilterState } from "@/components/ProductFilters";
 import { api } from "@/lib/api";
-import type { Audience, Brand, Category, Paginated, Product, ProductClass } from "@/types/product";
+import type { Facets, Paginated, Product } from "@/types/product";
 
-export const metadata: Metadata = { title: "Todos os modelos" };
+export const metadata: Metadata = { title: "Produtos" };
 export const dynamic = "force-dynamic";
 
-type Filters = { classe?: string; categoria?: string; publico?: string; marca?: string; busca?: string };
+type Params = { categoria?: string; publico?: string; marca?: string; cor?: string; numeracao?: string; min?: string; max?: string; ordem?: string; pagina?: string; selo?: string; busca?: string };
 
-/** Monta o link de um filtro mantendo os demais; clicar no filtro ativo o remove. */
-function href(current: Filters, key: keyof Filters, value: string) {
-  const next = { ...current, [key]: current[key] === value ? undefined : value };
-  const query = new URLSearchParams(Object.entries(next).filter(([, v]) => v) as [string, string][]);
-  return query.size ? `/produtos?${query}` : "/produtos";
-}
+const SELO_TITLE: Record<string, string> = { lancamento: "Lançamentos", promocao: "Promoções", destaque: "Destaques" };
+const SORTS = ["novidades", "menor-preco", "maior-preco", "nome"];
+const PAGE_SIZE = 24;
 
-function FilterRow({ label, items, param, filters }: { label: string; items: { slug: string; name: string }[]; param: keyof Filters; filters: Filters }) {
-  if (items.length === 0) return null;
-  return (
-    <div className="filter-row">
-      <span className="filter-label">{label}</span>
-      <div className="options">
-        {items.map((item) => (
-          <Link key={item.slug} href={href(filters, param, item.slug)} className={`option${filters[param] === item.slug ? " is-active" : ""}`}>
-            {item.name}
-          </Link>
-        ))}
-      </div>
-    </div>
-  );
-}
+const list = (value?: string) => (value ?? "").split(",").map((x) => x.trim()).filter(Boolean);
+const price = (value?: string) => (value && Number.isFinite(Number(value)) && Number(value) >= 0 ? Number(value) : undefined);
 
-export default async function ProdutosPage({ searchParams }: { searchParams: Promise<Filters> }) {
-  const filters = await searchParams;
+export default async function ProdutosPage({ searchParams }: { searchParams: Promise<Params> }) {
+  const params = await searchParams;
+  const selo = params.selo && params.selo in SELO_TITLE ? params.selo : undefined;
+  const ordem = params.ordem && SORTS.includes(params.ordem) ? params.ordem : "novidades";
+  const pagina = Math.max(1, Number.parseInt(params.pagina ?? "1", 10) || 1);
+  const state: FilterState = {
+    categoria: list(params.categoria),
+    publico: list(params.publico),
+    marca: list(params.marca),
+    cor: list(params.cor),
+    numeracao: list(params.numeracao),
+    min: price(params.min),
+    max: price(params.max),
+  };
+  const fixed: Record<string, string> = { ...(selo && { selo }), ...(params.busca && { busca: params.busca }) };
 
   let result: Paginated<Product> | null = null;
-  let classes: ProductClass[] = [];
-  let categories: Category[] = [];
-  let audiences: Audience[] = [];
-  let brands: Brand[] = [];
+  let facets: Facets | null = null;
   try {
-    [result, classes, categories, audiences, brands] = await Promise.all([
-      api.listProducts({ category: filters.categoria, productClass: filters.classe, audience: filters.publico, brand: filters.marca, search: filters.busca }),
-      api.listClasses(),
-      api.listCategories(),
-      api.listAudiences(),
-      api.listBrands(),
+    [result, facets] = await Promise.all([
+      api.listProducts({
+        page: pagina,
+        pageSize: PAGE_SIZE,
+        category: params.categoria,
+        audience: params.publico,
+        brand: params.marca,
+        color: params.cor,
+        size: params.numeracao,
+        minPrice: state.min?.toString(),
+        maxPrice: state.max?.toString(),
+        sort: ordem,
+        selo,
+        search: params.busca,
+      }),
+      api.productFacets({ selo, search: params.busca }),
     ]);
   } catch {
     // tratado abaixo
   }
 
-  // Com uma classe escolhida, só mostra as categorias dela.
-  const visibleCategories = filters.classe ? categories.filter((c) => c.productClass?.slug === filters.classe) : categories;
+  // Com um único público escolhido, ele entra no título ("Lançamentos · Feminino").
+  const audienceName = state.publico.length === 1 ? facets?.audiences.find((a) => a.slug === state.publico[0])?.name : undefined;
+  const title = `${(selo && SELO_TITLE[selo]) || "Todos os produtos"}${audienceName ? ` · ${audienceName}` : ""}`;
+
+  const pageHref = (page: number) => {
+    const query = new URLSearchParams(Object.entries(params).filter(([key, v]) => v && key !== "pagina") as [string, string][]);
+    if (page > 1) query.set("pagina", String(page));
+    return query.size ? `/produtos?${query}` : "/produtos";
+  };
 
   return (
     <div className="page">
-      <h1 className="page-title">Todos os modelos</h1>
-      {result && <p className="page-count">{result.total} produtos</p>}
+      <h1 className="page-title">{title}</h1>
 
-      <div className="filters">
-        <FilterRow label="Classe" items={classes} param="classe" filters={filters} />
-        <FilterRow label="Categoria" items={visibleCategories} param="categoria" filters={filters} />
-        <FilterRow label="Público" items={audiences} param="publico" filters={filters} />
-        <FilterRow label="Marca" items={brands} param="marca" filters={filters} />
-      </div>
+      <ProductFilters facets={facets} state={state} fixed={fixed} ordem={ordem} total={result?.total ?? 0} />
 
       {!result ? (
         <p>Não foi possível carregar os produtos. Tente novamente em instantes.</p>
       ) : result.items.length === 0 ? (
-        <p>Nenhum produto encontrado.</p>
+        <p className="shop-empty">Nenhum produto encontrado com esses filtros.</p>
       ) : (
         <div className="product-grid">
           {result.items.map((product) => (
             <ProductCard key={product.id} product={product} />
           ))}
         </div>
+      )}
+
+      {result && result.totalPages > 1 && (
+        <nav className="pager" aria-label="Páginas">
+          {result.page > 1 && <Link href={pageHref(result.page - 1)}>← Anterior</Link>}
+          <span>Página {result.page} de {result.totalPages}</span>
+          {result.page < result.totalPages && <Link href={pageHref(result.page + 1)}>Próxima →</Link>}
+        </nav>
       )}
     </div>
   );

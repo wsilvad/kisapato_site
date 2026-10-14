@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { assetUrl } from "@/lib/api";
+import { thumbUrl } from "@/lib/api";
 import { useCart } from "@/lib/cart";
 import { formatPrice } from "@/lib/format";
 
@@ -25,7 +25,7 @@ export default function SacolaPage() {
         {lines.map((l) => (
           <li key={l.variantId} className="cart-line">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            {l.image ? <img src={assetUrl(l.image)} alt="" /> : <span className="cart-thumb" />}
+            {l.image ? <img src={thumbUrl(l.image)} alt="" /> : <span className="cart-thumb" />}
             <div className="cart-info">
               <Link href={`/produtos/${l.slug}`}>{l.name}</Link>
               <span>Cor {l.color} · Nº {l.size}</span>

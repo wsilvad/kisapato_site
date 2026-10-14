@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
@@ -26,7 +25,6 @@ export default function ContaPage() {
     <div className="page">
       <h1 className="page-title">Minha conta</h1>
       <p>{user.name} · {user.email}</p>
-      {user.role === "ADMIN" && <p><Link href="/admin">Ir para o painel administrativo</Link></p>}
       <h2>Pedidos</h2>
       {orders.length === 0 ? <p>Você ainda não fez pedidos.</p> : (
         <ul className="order-list">

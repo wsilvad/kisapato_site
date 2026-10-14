@@ -10,6 +10,7 @@ const TABS = [
   ["promo", "Faixa promocional"],
   ["beneficios", "Benefícios"],
   ["rodape", "Rodapé"],
+  ["frete", "Frete"],
 ] as const;
 type Tab = (typeof TABS)[number][0];
 
@@ -23,6 +24,22 @@ function swap<T>(list: T[], index: number, direction: -1 | 1): T[] {
   const next = [...list];
   [next[index], next[target]] = [next[target]!, next[index]!];
   return next;
+}
+
+/** Lista de estados (UF) digitada à mão: guarda o texto enquanto a pessoa digita e entrega a lista já limpa. */
+function StatesInput({ value, onChange }: { value: string[]; onChange: (states: string[]) => void }) {
+  const [text, setText] = useState(value.join(", "));
+  return (
+    <input
+      value={text}
+      placeholder="RS, SC, PR"
+      aria-label="Estados (siglas separadas por vírgula)"
+      onChange={(e) => {
+        setText(e.target.value);
+        onChange(e.target.value.split(/[\s,;]+/).map((x) => x.trim().toUpperCase()).filter(Boolean));
+      }}
+    />
+  );
 }
 
 function RowTools({ index, total, onMove, onRemove }: { index: number; total: number; onMove: (d: -1 | 1) => void; onRemove: () => void }) {
@@ -194,6 +211,45 @@ export default function ContentAdmin() {
             {s.footer.columns.length < 4 && (
               <button type="button" className="link-btn" onClick={() => update({ footer: { ...s.footer, columns: [...s.footer.columns, { title: "", links: [] }] } })}>+ Adicionar coluna de links</button>
             )}
+          </>
+        )}
+
+        {tab === "frete" && (
+          <>
+            <fieldset>
+              <legend>Regras gerais</legend>
+              <label>Frete grátis acima de (R$)
+                <input type="number" min="0" step="0.01" value={s.shipping.freeAbove} onChange={(e) => update({ shipping: { ...s.shipping, freeAbove: Number(e.target.value) } })} />
+                <small>Use 0 para não oferecer frete grátis. Vale para o valor dos produtos.</small>
+              </label>
+              <div className="field">
+                <Switch checked={s.shipping.pickup.active} onChange={(active) => update({ shipping: { ...s.shipping, pickup: { ...s.shipping.pickup, active } } })} label={s.shipping.pickup.active ? "Oferecer retirada na loja" : "Retirada na loja desligada"} />
+              </div>
+              <label>Nome da retirada<input value={s.shipping.pickup.label} onChange={(e) => update({ shipping: { ...s.shipping, pickup: { ...s.shipping.pickup, label: e.target.value } } })} /></label>
+              <label>Aviso da retirada<input value={s.shipping.pickup.note} onChange={(e) => update({ shipping: { ...s.shipping, pickup: { ...s.shipping.pickup, note: e.target.value } } })} placeholder="Sem custo. Avisamos quando estiver pronto." /></label>
+            </fieldset>
+            <fieldset>
+              <legend>Valor e prazo por região (até 12)</legend>
+              <p className="span-2 admin-hint">
+                O cliente digita o CEP na página do produto e vê o valor e o prazo da região do estado dele. Estados fora destas regiões só veem a retirada na loja.
+                Os valores iniciais são exemplos: ajuste conforme o contrato com a sua transportadora. Os prazos contam em dias úteis.
+              </p>
+              <div className="span-2 rows">
+                {s.shipping.regions.map((r, i) => (
+                  <div key={i} className="ship-region">
+                    <label>Região<input value={r.name} onChange={(e) => update({ shipping: { ...s.shipping, regions: patchList(s.shipping.regions, i, { name: e.target.value }) } })} placeholder="Sudeste" /></label>
+                    <label>Estados<StatesInput value={r.states} onChange={(states) => update({ shipping: { ...s.shipping, regions: patchList(s.shipping.regions, i, { states }) } })} /></label>
+                    <label>Valor (R$)<input type="number" min="0" step="0.01" value={r.price} onChange={(e) => update({ shipping: { ...s.shipping, regions: patchList(s.shipping.regions, i, { price: Number(e.target.value) }) } })} /></label>
+                    <label>Prazo mín.<input type="number" min="0" value={r.minDays} onChange={(e) => update({ shipping: { ...s.shipping, regions: patchList(s.shipping.regions, i, { minDays: Number(e.target.value) }) } })} /></label>
+                    <label>Prazo máx.<input type="number" min="0" value={r.maxDays} onChange={(e) => update({ shipping: { ...s.shipping, regions: patchList(s.shipping.regions, i, { maxDays: Number(e.target.value) }) } })} /></label>
+                    <RowTools index={i} total={s.shipping.regions.length} onMove={(d) => update({ shipping: { ...s.shipping, regions: swap(s.shipping.regions, i, d) } })} onRemove={() => update({ shipping: { ...s.shipping, regions: s.shipping.regions.filter((_, j) => j !== i) } })} />
+                  </div>
+                ))}
+                {s.shipping.regions.length < 12 && (
+                  <button type="button" className="link-btn" onClick={() => update({ shipping: { ...s.shipping, regions: [...s.shipping.regions, { name: "", states: [], price: 0, minDays: 3, maxDays: 7 }] } })}>+ Adicionar região</button>
+                )}
+              </div>
+            </fieldset>
           </>
         )}
 

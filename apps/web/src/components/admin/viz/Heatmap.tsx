@@ -100,7 +100,7 @@ export function Heatmap({ cells }: { cells: HeatCell[] }) {
           >
             <span />
             {Array.from({ length: cols }, (_, c) => (
-              <span key={c} className="heat-hour" aria-hidden="true">{(step === 1 ? c % 3 === 0 : true) ? `${c * step}h` : ""}</span>
+              <span key={c} className="heat-hour" aria-hidden="true">{(step === 1 ? c % 3 === 0 : c % 2 === 0) ? `${c * step}h` : ""}</span>
             ))}
             {grid.map((row, r) => (
               <div key={r} role="row" className="heat-row">
