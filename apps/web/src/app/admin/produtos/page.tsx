@@ -4,8 +4,9 @@ import { useMemo, useState } from "react";
 import { Badge, ConfirmButton, EmptyState, ImageGallery, Notice, PageHead, RowSwitch, SearchSelect, SlugField, Switch, slugify, useAdminList, Thumb, type SearchOption } from "@/components/admin/kit";
 import { api } from "@/lib/api";
 import { formatPrice } from "@/lib/format";
+import { AGE_GROUP_LABEL, GENDER_LABEL, KIDS_GENDER_LABEL, segmentLabel, type AgeGroup, type Gender } from "@/lib/segment";
 import { hiddenReason } from "@/lib/visibility";
-import { BADGE_LABEL, type Audience, type BadgeKey, type Brand, type Category, type Product, type ProductClass } from "@/types/product";
+import { BADGE_LABEL, type BadgeKey, type Brand, type Category, type Product, type ProductClass } from "@/types/product";
 
 interface VariantRow {
   color: string;
@@ -20,7 +21,8 @@ interface FormState {
   slug: string;
   slugTouched: boolean;
   brandId: string;
-  audienceIds: string[];
+  ageGroup: AgeGroup;
+  gender: Gender;
   reference: string;
   categoryId: string;
   price: string;
@@ -35,7 +37,7 @@ interface FormState {
 }
 
 const EMPTY: FormState = {
-  name: "", slug: "", slugTouched: false, brandId: "", audienceIds: [], reference: "", categoryId: "", price: "",
+  name: "", slug: "", slugTouched: false, brandId: "", ageGroup: "ADULTO", gender: "UNISSEX", reference: "", categoryId: "", price: "",
   compareAtPrice: "", costPrice: "", badge: "", active: true, description: "", careInstructions: "", images: [], variants: [],
 };
 
@@ -46,7 +48,7 @@ const skuOf = (slug: string, v: VariantRow) => v.sku.trim() || autoSku(slug, v.c
 
 function fromProduct(p: Product): FormState {
   return {
-    id: p.id, name: p.name, slug: p.slug, slugTouched: true, brandId: p.brandId ?? p.brand?.id ?? "", audienceIds: (p.audiences ?? []).map((a) => a.id), reference: p.reference ?? "",
+    id: p.id, name: p.name, slug: p.slug, slugTouched: true, brandId: p.brandId ?? p.brand?.id ?? "", ageGroup: p.ageGroup ?? "ADULTO", gender: p.gender ?? "UNISSEX", reference: p.reference ?? "",
     categoryId: p.categoryId ?? p.category.id, price: p.price, compareAtPrice: p.compareAtPrice ?? "", costPrice: p.costPrice ?? "", badge: p.badge ?? "",
     active: p.active ?? true, description: p.description ?? "", careInstructions: p.careInstructions ?? "", images: p.images,
     variants: (p.variants ?? []).map((v) => ({ color: v.color, size: String(v.size), stock: String(v.stock), sku: v.sku === autoSku(p.slug, v.color, String(v.size)) ? "" : v.sku })),
@@ -56,7 +58,7 @@ function fromProduct(p: Product): FormState {
 /** Corpo aceito pela API (PUT/POST /admin/products). */
 function toBody(f: FormState) {
   return {
-    name: f.name.trim(), slug: f.slug, brandId: f.brandId || null, audienceIds: f.audienceIds, reference: f.reference.trim() || null,
+    name: f.name.trim(), slug: f.slug, brandId: f.brandId || null, ageGroup: f.ageGroup, gender: f.gender, reference: f.reference.trim() || null,
     description: f.description.trim() || null, careInstructions: f.careInstructions.trim() || null,
     price: f.price, compareAtPrice: f.compareAtPrice || null, costPrice: f.costPrice || null, badge: f.badge || null, images: f.images, active: f.active, categoryId: f.categoryId,
     variants: f.variants.map((v) => ({
@@ -94,7 +96,6 @@ export default function ProductsAdmin() {
   const categoryList = useAdminList<Category>("categories");
   const brandList = useAdminList<Brand>("brands");
   const classes = useAdminList<ProductClass>("classes").items;
-  const audiences = useAdminList<Audience>("audiences").items;
   const categories = categoryList.items;
   const [form, setForm] = useState<FormState | null>(null);
   const [query, setQuery] = useState("");
@@ -146,7 +147,6 @@ export default function ProductsAdmin() {
         categories={categories}
         brands={brandList.items}
         classes={classes}
-        audiences={audiences}
         onCatalogChange={() => Promise.all([categoryList.reload(), brandList.reload()]).then(() => undefined)}
         onCancel={() => setForm(null)}
         onSaved={async () => {
@@ -190,7 +190,7 @@ export default function ProductsAdmin() {
                   <tr key={p.id} className={p.active === false ? "is-off" : undefined}>
                     <td><Thumb url={p.images[0]} /></td>
                     <td><strong>{p.name}</strong>{p.badge && <> <Badge tone="warn">{BADGE_LABEL[p.badge]}</Badge></>}<br /><small>{[p.brand?.name, p.reference].filter(Boolean).join(" · ") || p.slug}</small></td>
-                    <td>{p.category.productClass?.name && <small>{p.category.productClass.name} › </small>}{p.category.name}{(p.audiences?.length ?? 0) > 0 && <><br /><small>{p.audiences!.map((a) => a.name).join(", ")}</small></>}</td>
+                    <td>{p.category.productClass?.name && <small>{p.category.productClass.name} › </small>}{p.category.name}<br /><small>{segmentLabel(p.ageGroup, p.gender)}</small></td>
                     <td>{formatPrice(p.price)}{p.compareAtPrice && <><br /><small className="strike">{formatPrice(p.compareAtPrice)}</small></>}</td>
                     <td>{stock === 0 ? <Badge tone="off">Esgotado</Badge> : stock}</td>
                     <td>
@@ -215,12 +215,11 @@ export default function ProductsAdmin() {
   );
 }
 
-function ProductForm({ initial, categories, brands, classes, audiences, onCatalogChange, onCancel, onSaved }: {
+function ProductForm({ initial, categories, brands, classes, onCatalogChange, onCancel, onSaved }: {
   initial: FormState;
   categories: Category[];
   brands: Brand[];
   classes: ProductClass[];
-  audiences: Audience[];
   onCatalogChange: () => Promise<void>;
   onCancel: () => void;
   onSaved: () => Promise<void>;
@@ -348,19 +347,25 @@ function ProductForm({ initial, categories, brands, classes, audiences, onCatalo
           </div>
         )}
         <div className="field">
-          <span className="field-label">Público-alvo (pode marcar vários)</span>
+          <span className="field-label">Faixa etária</span>
           <div className="checks">
-            {audiences.map((a) => (
-              <label key={a.id} className="check">
-                <input
-                  type="checkbox"
-                  checked={f.audienceIds.includes(a.id)}
-                  onChange={(e) => set("audienceIds", e.target.checked ? [...f.audienceIds, a.id] : f.audienceIds.filter((id) => id !== a.id))}
-                />
-                {a.name}
+            {(Object.keys(AGE_GROUP_LABEL) as AgeGroup[]).map((value) => (
+              <label key={value} className="check">
+                <input type="radio" name="ageGroup" checked={f.ageGroup === value} onChange={() => set("ageGroup", value)} />
+                {AGE_GROUP_LABEL[value]}
               </label>
             ))}
-            {audiences.length === 0 && <small>Cadastre públicos em Catálogo → Públicos-alvo.</small>}
+          </div>
+        </div>
+        <div className="field">
+          <span className="field-label">Gênero <small>(unissex aparece nos dois)</small></span>
+          <div className="checks">
+            {(Object.keys(GENDER_LABEL) as Gender[]).map((value) => (
+              <label key={value} className="check">
+                <input type="radio" name="gender" checked={f.gender === value} onChange={() => set("gender", value)} />
+                {(f.ageGroup === "INFANTIL" ? KIDS_GENDER_LABEL : GENDER_LABEL)[value]}
+              </label>
+            ))}
           </div>
         </div>
         <label>Referência / código<input value={f.reference} onChange={(e) => set("reference", e.target.value)} /></label>

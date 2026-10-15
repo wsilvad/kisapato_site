@@ -3,9 +3,11 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { api } from "@/lib/api";
-import type { FacetOption } from "@/types/product";
+import type { Facets } from "@/types/product";
 
-const cache = new Map<string, { audiences: FacetOption[]; total: number }>();
+type Data = Pick<Facets, "segments" | "total">;
+const cache = new Map<string, Data>();
+const NONE: Data = { segments: { adulto: { total: 0, feminino: 0, masculino: 0 }, infantil: { total: 0, feminino: 0, masculino: 0 } }, total: 0 };
 
 interface Props {
   label: string;
@@ -16,8 +18,9 @@ interface Props {
 }
 
 /**
- * Item do menu principal que, ao clicar, abre a escolha do público (Feminino, Masculino…). Só lista públicos que
- * têm produtos naquela seleção, com a quantidade; "Ver tudo" leva à seleção inteira. Abre também ao passar o mouse.
+ * Item do menu principal que, ao clicar, abre a escolha do público: Feminino, Masculino e Infantil (com Menina e
+ * Menino logo abaixo). Só lista o que tem produtos naquela seleção, com a quantidade; unissex conta nos dois
+ * gêneros. "Ver tudo" leva à seleção inteira. Abre também ao passar o mouse.
  */
 export function NavMenu({ label, url, className, current }: Props) {
   const target = new URL(url, "http://loja");
@@ -37,11 +40,11 @@ export function NavMenu({ label, url, className, current }: Props) {
     api
       .productFacets({ selo: selo || undefined })
       .then((facets) => {
-        const value = { audiences: facets.audiences, total: facets.total };
+        const value = { segments: facets.segments, total: facets.total };
         cache.set(selo, value);
         if (!cancelled) setData(value);
       })
-      .catch(() => !cancelled && setData({ audiences: [], total: 0 }));
+      .catch(() => !cancelled && setData(NONE));
     return () => {
       cancelled = true;
     };
@@ -59,11 +62,20 @@ export function NavMenu({ label, url, className, current }: Props) {
     };
   }, [open]);
 
-  const audienceHref = (slug: string) => {
+  const href = (faixa: string, genero?: string) => {
     const params = new URLSearchParams(target.search);
-    params.set("publico", slug);
+    params.set("faixa", faixa);
+    if (genero) params.set("genero", genero);
     return `/produtos?${params}`;
   };
+  const { adulto, infantil } = (data ?? NONE).segments;
+  const entries = [
+    { key: "f", label: "Feminino", href: href("adulto", "feminino"), count: adulto.feminino },
+    { key: "m", label: "Masculino", href: href("adulto", "masculino"), count: adulto.masculino },
+    { key: "i", label: "Infantil", href: href("infantil"), count: infantil.total },
+    { key: "i-f", label: "Menina", href: href("infantil", "feminino"), count: infantil.feminino, sub: true },
+    { key: "i-m", label: "Menino", href: href("infantil", "masculino"), count: infantil.masculino, sub: true },
+  ].filter((e) => e.count > 0);
   function close() {
     clearTimeout(timer.current);
     setHovered(false);
@@ -101,9 +113,9 @@ export function NavMenu({ label, url, className, current }: Props) {
               <Link href={url} role="menuitem" onClick={close}>
                 Ver tudo {data && data.total > 0 && <small>{data.total}</small>}
               </Link>
-              {(data?.audiences ?? []).map((audience) => (
-                <Link key={audience.slug} href={audienceHref(audience.slug)} role="menuitem" onClick={close}>
-                  {audience.name} <small>{audience.count}</small>
+              {entries.map((e) => (
+                <Link key={e.key} href={e.href} role="menuitem" className={e.sub ? "nav-menu-sub" : undefined} onClick={close}>
+                  {e.label} <small>{e.count}</small>
                 </Link>
               ))}
               {!data && <span className="nav-menu-note">Carregando…</span>}

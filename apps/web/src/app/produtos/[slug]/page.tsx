@@ -6,6 +6,7 @@ import { ProductGallery } from "@/components/ProductGallery";
 import { AboutProduct } from "@/components/pdp/AboutProduct";
 import { ProductInfo } from "@/components/pdp/ProductInfo";
 import { api } from "@/lib/api";
+import { segmentLabel } from "@/lib/segment";
 import type { Product } from "@/types/product";
 
 export const dynamic = "force-dynamic";
@@ -34,7 +35,7 @@ export default async function ProdutoPage({ params }: { params: Promise<{ slug: 
   const specs = [
     product.brand?.name && { label: "Marca", value: product.brand.name },
     { label: "Categoria", value: product.category.name },
-    (product.audiences?.length ?? 0) > 0 && { label: "Público", value: product.audiences!.map((a) => a.name).join(", ") },
+    { label: "Público", value: segmentLabel(product.ageGroup, product.gender) },
     product.reference && { label: "Referência", value: product.reference },
   ].filter(Boolean) as { label: string; value: string }[];
 

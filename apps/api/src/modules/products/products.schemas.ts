@@ -9,11 +9,14 @@ const csv = z
     return items.length > 0 ? items : undefined;
   });
 
-/** Filtros da vitrine; categoria, público, marca, cor e numeração aceitam vários valores separados por vírgula. */
+/** Filtros da vitrine; categoria, faixa, gênero, marca, cor e numeração aceitam vários valores separados por vírgula. */
 export const productFiltersQuery = z.object({
   category: csv,
   productClass: z.string().optional(),
-  audience: csv,
+  /** Faixa etária: `adulto`, `infantil`. */
+  ageGroup: csv,
+  /** Gênero: `feminino`, `masculino` (ambos incluem os unissex) ou `unissex`. */
+  gender: csv,
   brand: csv,
   color: csv,
   size: csv.transform((items) => items?.map(Number).filter((n) => Number.isInteger(n) && n > 0)),

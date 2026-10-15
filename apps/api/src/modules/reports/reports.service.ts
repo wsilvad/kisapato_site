@@ -1,6 +1,7 @@
 import { prisma } from "../../lib/prisma.js";
 import { REALIZED, applyFilters, buildCustomers, buildInventory, buildOverview, dailySeries, totalsOf, type Filters, type OrderRow, type VariantRow } from "./reports.analytics.js";
 import { previousPeriod, type Period } from "./reports.period.js";
+import { segmentLabel } from "../products/segment.js";
 
 const DAY_MS = 86_400_000;
 
@@ -12,7 +13,7 @@ async function loadOrders(start: Date, end: Date): Promise<OrderRow[]> {
         omit: { unitCost: false },
         include: {
           variant: {
-            include: { product: { include: { category: { include: { productClass: true } }, brand: true, audiences: true } } },
+            include: { product: { include: { category: { include: { productClass: true } }, brand: true } } },
           },
         },
       },
@@ -35,7 +36,7 @@ async function loadOrders(start: Date, end: Date): Promise<OrderRow[]> {
         categoryName: product.category.name,
         className: product.category.productClass?.name ?? null,
         brandName: product.brand?.name ?? null,
-        audiences: product.audiences.map((a) => a.name),
+        audiences: [segmentLabel(product.ageGroup, product.gender)],
       };
     }),
   }));

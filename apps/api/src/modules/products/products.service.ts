@@ -2,6 +2,7 @@ import type { Prisma } from "../../generated/prisma/client.js";
 import { AppError } from "../../lib/errors.js";
 import { prisma } from "../../lib/prisma.js";
 import type { ListProductsQuery, ProductFilters } from "./products.schemas.js";
+import { ageGroupsOf, genderWhere, gendersOf } from "./segment.js";
 
 /**
  * Um produto só aparece na loja se ele, sua categoria, a classe da categoria e a marca (quando tem)
@@ -20,15 +21,16 @@ export function seloWhere(selo: "lancamento" | "promocao" | "destaque"): Prisma.
   return { OR: [{ badge: "PROMOCAO" }, { compareAtPrice: { not: null } }] };
 }
 
-const include = { brand: true, category: { include: { productClass: true } }, audiences: { orderBy: { sortOrder: "asc" as const } } };
+const include = { brand: true, category: { include: { productClass: true } } };
 
 /** Monta o `where` dos filtros da vitrine (sem a regra de visibilidade, que o chamador soma). */
-function filtersWhere({ category, productClass, audience, brand, color, size, minPrice, maxPrice, selo, slugs, search }: Partial<ProductFilters>): Prisma.ProductWhereInput[] {
+function filtersWhere({ category, productClass, ageGroup, gender, brand, color, size, minPrice, maxPrice, selo, slugs, search }: Partial<ProductFilters>): Prisma.ProductWhereInput[] {
   const conditions: Prisma.ProductWhereInput[] = [];
   if (category || productClass) {
     conditions.push({ category: { ...(category && { slug: { in: category } }), ...(productClass && { productClass: { slug: productClass } }) } });
   }
-  if (audience) conditions.push({ audiences: { some: { slug: { in: audience } } } });
+  if (ageGroup) conditions.push({ ageGroup: { in: ageGroupsOf(ageGroup) } });
+  if (gender) conditions.push(genderWhere(gendersOf(gender)));
   if (brand) conditions.push({ brand: { slug: { in: brand } } });
   // Cor e numeração valem para a mesma variante (ex.: "preto" + "38" = existe preto no 38) e só contam com estoque.
   if (color || size) {
@@ -69,25 +71,28 @@ export async function listProducts({ page, pageSize, sort, ...filters }: ListPro
 
 /**
  * Opções do painel de filtros ("Filtrar por"). Valem para a seleção atual (lançamentos, promoções, busca…),
- * mas ignoram os demais filtros marcados, para as opções não sumirem enquanto a pessoa escolhe.
+ * mas ignoram os demais filtros marcados, para as opções não sumirem enquanto a pessoa escolhe. A exceção é a
+ * faixa etária: escolhido o infantil, gênero, numeração, cores, categorias, marcas e preço são só do infantil.
+ * `segments` traz, por faixa, o total e quantos servem a feminino e a masculino (o menu do topo usa).
  */
-export async function productFacets({ selo, search }: Pick<ProductFilters, "selo" | "search">) {
+export async function productFacets({ selo, search, ageGroup }: Pick<ProductFilters, "selo" | "search" | "ageGroup">) {
   const products = await prisma.product.findMany({
     where: { AND: [visibleProductWhere, ...filtersWhere({ selo, search })] },
     select: {
       price: true,
+      ageGroup: true,
+      gender: true,
       category: { select: { name: true, slug: true, sortOrder: true } },
       brand: { select: { name: true, slug: true, sortOrder: true } },
-      audiences: { select: { name: true, slug: true, sortOrder: true } },
       variants: { where: { stock: { gt: 0 } }, select: { size: true, color: true } },
     },
     take: 2000,
   });
 
   type Option = { name: string; slug: string; count: number; sortOrder: number };
-  const tally = (pick: (p: (typeof products)[number]) => { name: string; slug: string; sortOrder: number }[]) => {
+  const tally = (list: typeof products, pick: (p: (typeof products)[number]) => { name: string; slug: string; sortOrder: number }[]) => {
     const map = new Map<string, Option>();
-    for (const product of products) {
+    for (const product of list) {
       for (const item of pick(product)) {
         const entry = map.get(item.slug) ?? { ...item, count: 0 };
         entry.count += 1;
@@ -97,20 +102,40 @@ export async function productFacets({ selo, search }: Pick<ProductFilters, "selo
     return [...map.values()].sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name, "pt-BR")).map(({ name, slug, count }) => ({ name, slug, count }));
   };
 
+  const ages = ageGroup ? new Set(ageGroupsOf(ageGroup)) : null;
+  const inAge = ages ? products.filter((p) => ages.has(p.ageGroup)) : products;
+
   const colors = new Map<string, string>();
   const sizes = new Set<number>();
-  for (const product of products) {
+  for (const product of inAge) {
     for (const v of product.variants) {
       colors.set(v.color.toLowerCase(), v.color);
       sizes.add(v.size);
     }
   }
-  const prices = products.map((p) => Number(p.price));
+  const prices = inAge.map((p) => Number(p.price));
+
+  const segments = {
+    adulto: { total: 0, feminino: 0, masculino: 0 },
+    infantil: { total: 0, feminino: 0, masculino: 0 },
+  };
+  for (const p of products) {
+    const s = segments[p.ageGroup === "INFANTIL" ? "infantil" : "adulto"];
+    s.total += 1;
+    if (p.gender !== "MASCULINO") s.feminino += 1;
+    if (p.gender !== "FEMININO") s.masculino += 1;
+  }
 
   return {
-    audiences: tally((p) => p.audiences),
-    categories: tally((p) => [p.category]),
-    brands: tally((p) => (p.brand ? [p.brand] : [])),
+    ageGroups: tally(products, (p) => [p.ageGroup === "INFANTIL" ? { name: "Infantil", slug: "infantil", sortOrder: 1 } : { name: "Adulto", slug: "adulto", sortOrder: 0 }]),
+    // Unissex conta nos dois, como no filtro.
+    genders: tally(inAge, (p) => [
+      ...(p.gender !== "MASCULINO" ? [{ name: "Feminino", slug: "feminino", sortOrder: 0 }] : []),
+      ...(p.gender !== "FEMININO" ? [{ name: "Masculino", slug: "masculino", sortOrder: 1 }] : []),
+    ]),
+    segments,
+    categories: tally(inAge, (p) => [p.category]),
+    brands: tally(inAge, (p) => (p.brand ? [p.brand] : [])),
     colors: [...colors.values()].sort((a, b) => a.localeCompare(b, "pt-BR")),
     sizes: [...sizes].sort((a, b) => a - b),
     price: prices.length > 0 ? { min: Math.floor(Math.min(...prices)), max: Math.ceil(Math.max(...prices)) } : null,
@@ -132,14 +157,14 @@ export async function getProductBySlug(slug: string) {
 }
 
 /**
- * "Compre junto": peças de OUTRAS categorias que combinam com o produto. A pontuação favorece o mesmo público
- * (feminino com feminino…), uma classe diferente (calçado + acessório), a mesma marca e produtos com foto; só
+ * "Compre junto": peças de OUTRAS categorias que combinam com o produto. A pontuação favorece a mesma faixa
+ * etária e um gênero compatível (feminino com feminino ou unissex…), uma classe diferente (calçado + acessório), a mesma marca e produtos com foto; só
  * entram itens com estoque.
  */
 export async function relatedProducts(slug: string, limit = 4) {
   const base = await prisma.product.findFirst({
     where: { AND: [visibleProductWhere, { slug }] },
-    include: { category: true, audiences: true },
+    include: { category: true },
   });
   if (!base) throw new AppError("Produto não encontrado", 404);
 
@@ -150,13 +175,13 @@ export async function relatedProducts(slug: string, limit = 4) {
     take: 80,
   });
 
-  const baseAudiences = new Set(base.audiences.map((a) => a.id));
   return candidates
     .filter((c) => c.variants.some((v) => v.stock > 0))
     .map(({ variants: _variants, ...product }) => ({
       product,
       score:
-        product.audiences.filter((a) => baseAudiences.has(a.id)).length * 3 +
+        (product.ageGroup === base.ageGroup ? 3 : 0) +
+        (product.gender === base.gender || product.gender === "UNISSEX" || base.gender === "UNISSEX" ? 3 : 0) +
         (product.category.classId !== base.category.classId ? 2 : 0) +
         (product.brandId && product.brandId === base.brandId ? 1 : 0) +
         (product.images.length > 0 ? 1 : 0),

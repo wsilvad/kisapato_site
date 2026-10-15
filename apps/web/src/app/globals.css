@@ -1529,15 +1529,26 @@ a.btn-small { display: inline-flex; align-items: center; text-decoration: none; 
 .nav .nav-menu a:hover { background: var(--surface); color: var(--ink); text-decoration: none; }
 .nav-menu a small { color: var(--muted); font-size: 12px; }
 .nav-menu-note { padding: 11px 20px; color: var(--muted); font-size: 13px; }
+/* Menina/Menino ficam recuados, logo abaixo de Infantil. */
+.nav .nav-menu a.nav-menu-sub { padding-left: 36px; color: var(--muted); font-size: 13px; }
+.nav .nav-menu a.nav-menu-sub:hover { color: var(--ink); }
 @media (max-width: 760px) {
   .nav-scrim { background: rgba(0, 0, 0, 0.45); }
   /* No celular o menu vira uma folha na parte de baixo (o menu principal rola na horizontal e cortaria o painel). */
   .nav-menu { position: fixed; top: auto; right: 0; bottom: 0; left: 0; padding: 0; transform: none; }
   .nav-menu-box { min-width: 0; padding: 12px 0 20px; }
   .nav .nav-menu a { padding: 14px 24px; font-size: 16px; }
+  .nav .nav-menu a.nav-menu-sub { padding: 11px 24px 11px 44px; font-size: 15px; }
 }
 
 /* ---------- vitrine: barra de filtros e painel "Filtrar por" ---------- */
+/* Atalho de gênero (Todos · Menina · Menino) quando a página é de uma faixa só. */
+/* Gênero rápido e numeração rápida dividem a mesma linha (quebram para baixo se faltar espaço). */
+.quick-row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 32px; margin: 0 0 20px; }
+.gender-quick { display: flex; flex-wrap: wrap; gap: 8px; }
+.gender-quick button { min-width: 96px; height: 36px; padding: 0 18px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font: inherit; font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; cursor: pointer; }
+.gender-quick button:hover { border-color: var(--ink); }
+.gender-quick button.is-active { border-color: var(--ink); background: var(--ink); color: var(--paper); }
 .shop-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 24px; margin: 20px 0 16px; }
 .shop-count { margin: 0; color: var(--muted); font-size: 14px; }
 .shop-count strong { color: var(--ink); font-weight: 600; }
@@ -1547,8 +1558,17 @@ a.btn-small { display: inline-flex; align-items: center; text-decoration: none; 
 .shop-filter-btn { display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--ink); }
 .shop-filter-count { display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; padding: 0 5px; background: var(--ink); color: var(--paper); font-size: 11px; }
 .shop-filter-btn:hover .shop-filter-count { background: var(--paper); color: var(--ink); }
-.size-quick { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; margin: 0 0 20px; font-size: 14px; }
-.size-quick-list { display: flex; flex-wrap: wrap; gap: 8px; }
+.size-quick { --sq: 40px; --sq-gap: 8px; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; font-size: 14px; }
+.size-quick-pager { display: flex; align-items: center; gap: var(--sq-gap); }
+/* Janela de 6 numerações; o resto fica ao lado, alcançado pelo "+" (ou arrastando no celular). */
+.size-quick-list { display: flex; gap: var(--sq-gap); max-width: calc(6 * var(--sq) + 5 * var(--sq-gap)); overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; }
+.size-quick-list::-webkit-scrollbar { display: none; }
+.size-quick .size-quick-list button { flex: none; width: var(--sq); min-width: 0; padding: 0; }
+.size-quick-list > :nth-child(6n + 1) { scroll-snap-align: start; }
+.size-quick-pad { flex: none; width: var(--sq); }
+.size-quick-nav { flex: none; width: 32px; height: 36px; border: 1px solid var(--ink); background: var(--paper); color: var(--ink); font: inherit; font-size: 18px; line-height: 1; cursor: pointer; }
+.size-quick-nav:hover:not(:disabled) { background: var(--ink); color: var(--paper); }
+.size-quick-nav:disabled { border-color: var(--line); color: var(--line); cursor: default; }
 .size-quick-list button, .fsizes button { min-width: 40px; height: 36px; padding: 0 10px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font: inherit; font-size: 13px; cursor: pointer; }
 .size-quick-list button:hover, .fsizes button:hover { border-color: var(--ink); }
 .size-quick-list button.is-active, .fsizes button.is-active { border-color: var(--ink); background: var(--ink); color: var(--paper); }
@@ -1590,9 +1610,8 @@ a.btn-small { display: inline-flex; align-items: center; text-decoration: none; 
 .ffoot .btn-outline { border: 1px solid var(--ink); }
 .btn.shop-filter-btn { border: 1px solid var(--ink); }
 @media (max-width: 760px) {
-  .size-quick { flex-direction: column; align-items: stretch; gap: 8px; }
-  .size-quick-list { flex-wrap: nowrap; margin: 0 calc(var(--pad) * -1); padding: 0 var(--pad) 4px; overflow-x: auto; scrollbar-width: none; }
-  .size-quick-list::-webkit-scrollbar { display: none; }
-  .size-quick-list button { flex: none; }
+  .quick-row { flex-direction: column; align-items: stretch; gap: 14px; }
+  .gender-quick button { flex: 1; min-width: 0; padding: 0 8px; }
+  .size-quick { --sq: 36px; --sq-gap: 6px; flex-direction: column; align-items: stretch; gap: 8px; }
   .shop-tools { width: 100%; justify-content: space-between; }
 }

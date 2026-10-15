@@ -1,3 +1,5 @@
+import type { AgeGroup, Gender } from "@/lib/segment";
+
 /** Classe de produto, nível acima da categoria (Calçados, Acessórios…). */
 export interface ProductClass {
   id: string;
@@ -18,13 +20,16 @@ export interface Brand {
   _count?: { products: number };
 }
 
-/** Público-alvo (Feminino, Masculino, Infantil…). */
+/** Atalho de público (Feminino, Infantil, Menina…): cartão da home que leva a uma faixa etária e/ou gênero. */
 export interface Audience {
   id: string;
   name: string;
   slug: string;
   imageUrl?: string | null;
   sortOrder: number;
+  /** Vazio = todas as faixas / todos os gêneros. */
+  ageGroup?: AgeGroup | null;
+  gender?: Gender | null;
   _count?: { products: number };
 }
 
@@ -58,7 +63,8 @@ export interface Product {
   brand?: Brand | null;
   brandId?: string | null;
   careInstructions?: string | null;
-  audiences?: Audience[];
+  ageGroup?: AgeGroup;
+  gender?: Gender;
   reference?: string | null;
   categoryId?: string;
   active?: boolean;
@@ -83,7 +89,12 @@ export interface FacetOption {
 
 /** Opções do painel "Filtrar por", calculadas para a seleção atual (lançamentos, promoções…). */
 export interface Facets {
-  audiences: FacetOption[];
+  /** Adulto / Infantil. */
+  ageGroups: FacetOption[];
+  /** Feminino / Masculino (unissex conta nos dois); só da faixa pedida, quando há uma. */
+  genders: FacetOption[];
+  /** Por faixa: total e quantos servem a feminino e a masculino (menu do topo). */
+  segments: Record<"adulto" | "infantil", { total: number; feminino: number; masculino: number }>;
   categories: FacetOption[];
   brands: FacetOption[];
   colors: string[];

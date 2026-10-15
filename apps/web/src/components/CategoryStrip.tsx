@@ -9,10 +9,11 @@ const cache = new Map<string, Category[]>();
 
 /**
  * Segunda linha do menu: as categorias da seleção escolhida em cima (todos os produtos, lançamentos ou
- * promoções). Só lista categorias que têm produtos naquela seleção, para nenhum link levar a uma página vazia.
+ * promoções), mantendo a faixa e o gênero escolhidos. Só lista categorias que têm produtos naquela seleção, para
+ * nenhum link levar a uma página vazia.
  */
-export function CategoryStrip({ selo, audience, active }: { selo: string; audience: string; active: string | null }) {
-  const key = `${selo}|${audience}`;
+export function CategoryStrip({ selo, faixa, genero, active }: { selo: string; faixa: string; genero: string; active: string | null }) {
+  const key = `${selo}|${faixa}|${genero}`;
   const [categories, setCategories] = useState<Category[] | null>(cache.get(key) ?? null);
 
   useEffect(() => {
@@ -24,7 +25,7 @@ export function CategoryStrip({ selo, audience, active }: { selo: string; audien
       return;
     }
     api
-      .listCategories(selo || undefined, audience || undefined)
+      .listCategories({ selo, ageGroup: faixa, gender: genero })
       .then((list) => {
         cache.set(key, list);
         if (!cancelled) setCategories(list);
@@ -33,13 +34,14 @@ export function CategoryStrip({ selo, audience, active }: { selo: string; audien
     return () => {
       cancelled = true;
     };
-  }, [key, selo, audience]);
+  }, [key, selo, faixa, genero]);
 
   const href = (slug?: string) => {
     const query = new URLSearchParams();
     if (slug) query.set("categoria", slug);
     if (selo) query.set("selo", selo);
-    if (audience) query.set("publico", audience);
+    if (faixa) query.set("faixa", faixa);
+    if (genero) query.set("genero", genero);
     return query.size ? `/produtos?${query}` : "/produtos";
   };
 

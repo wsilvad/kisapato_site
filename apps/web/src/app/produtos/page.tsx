@@ -1,14 +1,16 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { ProductCard } from "@/components/ProductCard";
 import { ProductFilters, type FilterState } from "@/components/ProductFilters";
 import { api } from "@/lib/api";
+import { audienceHref, segmentTitle } from "@/lib/segment";
 import type { Facets, Paginated, Product } from "@/types/product";
 
 export const metadata: Metadata = { title: "Produtos" };
 export const dynamic = "force-dynamic";
 
-type Params = { categoria?: string; publico?: string; marca?: string; cor?: string; numeracao?: string; min?: string; max?: string; ordem?: string; pagina?: string; selo?: string; busca?: string };
+type Params = { categoria?: string; faixa?: string; genero?: string; publico?: string; marca?: string; cor?: string; numeracao?: string; min?: string; max?: string; ordem?: string; pagina?: string; selo?: string; busca?: string };
 
 const SELO_TITLE: Record<string, string> = { lancamento: "Lançamentos", promocao: "Promoções", destaque: "Destaques" };
 const SORTS = ["novidades", "menor-preco", "maior-preco", "nome"];
@@ -17,14 +19,26 @@ const PAGE_SIZE = 24;
 const list = (value?: string) => (value ?? "").split(",").map((x) => x.trim()).filter(Boolean);
 const price = (value?: string) => (value && Number.isFinite(Number(value)) && Number(value) >= 0 ? Number(value) : undefined);
 
+/** Links antigos (`?publico=feminino`) viram a faixa e o gênero que o atalho daquele público guarda. */
+async function legacyAudienceUrl(params: Params) {
+  const rest = Object.fromEntries(Object.entries(params).filter(([key, v]) => v && key !== "publico" && key !== "pagina")) as Record<string, string>;
+  const audience = await api
+    .listAudiences()
+    .then((audiences) => audiences.find((a) => a.slug === list(params.publico)[0]))
+    .catch(() => undefined);
+  return audience ? audienceHref(audience, rest) : audienceHref({}, rest);
+}
+
 export default async function ProdutosPage({ searchParams }: { searchParams: Promise<Params> }) {
   const params = await searchParams;
+  if (params.publico) redirect(await legacyAudienceUrl(params));
   const selo = params.selo && params.selo in SELO_TITLE ? params.selo : undefined;
   const ordem = params.ordem && SORTS.includes(params.ordem) ? params.ordem : "novidades";
   const pagina = Math.max(1, Number.parseInt(params.pagina ?? "1", 10) || 1);
   const state: FilterState = {
     categoria: list(params.categoria),
-    publico: list(params.publico),
+    faixa: list(params.faixa),
+    genero: list(params.genero),
     marca: list(params.marca),
     cor: list(params.cor),
     numeracao: list(params.numeracao),
@@ -41,7 +55,8 @@ export default async function ProdutosPage({ searchParams }: { searchParams: Pro
         page: pagina,
         pageSize: PAGE_SIZE,
         category: params.categoria,
-        audience: params.publico,
+        ageGroup: params.faixa,
+        gender: params.genero,
         brand: params.marca,
         color: params.cor,
         size: params.numeracao,
@@ -51,15 +66,15 @@ export default async function ProdutosPage({ searchParams }: { searchParams: Pro
         selo,
         search: params.busca,
       }),
-      api.productFacets({ selo, search: params.busca }),
+      api.productFacets({ selo, search: params.busca, ageGroup: params.faixa }),
     ]);
   } catch {
     // tratado abaixo
   }
 
-  // Com um único público escolhido, ele entra no título ("Lançamentos · Feminino").
-  const audienceName = state.publico.length === 1 ? facets?.audiences.find((a) => a.slug === state.publico[0])?.name : undefined;
-  const title = `${(selo && SELO_TITLE[selo]) || "Todos os produtos"}${audienceName ? ` · ${audienceName}` : ""}`;
+  // Com uma faixa e/ou um gênero escolhidos, eles entram no título ("Lançamentos · Infantil · Menina").
+  const segment = segmentTitle(state.faixa, state.genero);
+  const title = `${(selo && SELO_TITLE[selo]) || "Todos os produtos"}${segment ? ` · ${segment}` : ""}`;
 
   const pageHref = (page: number) => {
     const query = new URLSearchParams(Object.entries(params).filter(([key, v]) => v && key !== "pagina") as [string, string][]);

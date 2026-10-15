@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Badge, ConfirmButton, EmptyState, ImageField, MoveButtons, Notice, PageHead, RowSwitch, SlugField, Thumb, reorder, slugify, useAdminList } from "./kit";
 import { api } from "@/lib/api";
+import { AGE_GROUP_LABEL, GENDER_LABEL, KIDS_GENDER_LABEL, audienceHref, type AgeGroup, type Gender } from "@/lib/segment";
 
 interface Item {
   id: string;
@@ -10,6 +11,8 @@ interface Item {
   slug: string;
   sortOrder: number;
   imageUrl?: string | null;
+  ageGroup?: AgeGroup | null;
+  gender?: Gender | null;
   active?: boolean;
   _count?: Record<string, number>;
 }
@@ -30,19 +33,33 @@ interface Props {
   activatable?: { warn: (name: string, count: number) => string };
   /** Quando informado, cada item tem uma foto (usada no cartão da home); a dica orienta o formato. */
   imageHint?: string;
+  /** Atalhos de público: cada item guarda a faixa etária e o gênero que mostra, em vez de um endereço próprio. */
+  segment?: boolean;
 }
 
-const body = (i: { name: string; slug: string; sortOrder: number; imageUrl?: string | null }, withImage: boolean) => ({
+type Fields = Pick<Item, "name" | "slug" | "sortOrder" | "imageUrl" | "ageGroup" | "gender">;
+
+const body = (i: Fields, opts: { image: boolean; segment: boolean }) => ({
   name: i.name.trim(),
   slug: i.slug,
   sortOrder: i.sortOrder,
-  ...(withImage && { imageUrl: i.imageUrl ?? null }),
+  ...(opts.image && { imageUrl: i.imageUrl ?? null }),
+  ...(opts.segment && { ageGroup: i.ageGroup ?? null, gender: i.gender ?? null }),
 });
 
+/** "Infantil · Menina", "Feminino", "Todos os produtos"… */
+function segmentText(i: Pick<Item, "ageGroup" | "gender">) {
+  const gender = i.gender ? (i.ageGroup === "INFANTIL" ? KIDS_GENDER_LABEL : GENDER_LABEL)[i.gender] : null;
+  if (i.ageGroup === "INFANTIL") return gender ? `Infantil · ${gender}` : "Infantil (todos)";
+  if (i.ageGroup === "ADULTO") return gender ? `Adulto · ${gender}` : "Adulto (todos)";
+  return gender ? `${gender} (todas as idades)` : "Todos os produtos";
+}
+
 /** CRUD simples de uma lista ordenável (nome + endereço), usado por Classes e Públicos-alvo. */
-export function TaxonomyAdmin({ resource, title, hint, noun, newLabel, usage, deleteMessage, placeholder, activatable, imageHint }: Props) {
+export function TaxonomyAdmin({ resource, title, hint, noun, newLabel, usage, deleteMessage, placeholder, activatable, imageHint, segment = false }: Props) {
   const { items, setItems, loading, error, setError, reload } = useAdminList<Item>(resource);
-  const [editing, setEditing] = useState<{ id?: string; name: string; slug: string; slugTouched: boolean; sortOrder: number; imageUrl?: string | null } | null>(null);
+  const [editing, setEditing] = useState<(Fields & { id?: string; slugTouched: boolean }) | null>(null);
+  const opts = { image: !!imageHint, segment };
   const [formError, setFormError] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -61,8 +78,8 @@ export function TaxonomyAdmin({ resource, title, hint, noun, newLabel, usage, de
     if (!editing.name.trim() || !editing.slug) return setFormError(`Informe o nome d${newLabel === "Nova" ? "a" : "o"} ${noun}.`);
     setSaving(true);
     try {
-      if (editing.id) await api.admin.update(resource, editing.id, body(editing, !!imageHint));
-      else await api.admin.create(resource, body(editing, !!imageHint));
+      if (editing.id) await api.admin.update(resource, editing.id, body(editing, opts));
+      else await api.admin.create(resource, body(editing, opts));
       setEditing(null);
       setFormError("");
       await reload();
@@ -95,7 +112,25 @@ export function TaxonomyAdmin({ resource, title, hint, noun, newLabel, usage, de
           <label>Nome
             <input value={editing.name} required placeholder={placeholder} onChange={(e) => setEditing((cur) => cur && { ...cur, name: e.target.value, slug: cur.slugTouched ? cur.slug : slugify(e.target.value) })} />
           </label>
-          <SlugField value={editing.slug} name={editing.name} prefix={`/produtos?${{ classes: "classe", audiences: "publico", brands: "marca" }[resource]}=`} onChange={(slug) => setEditing((cur) => cur && { ...cur, slug, slugTouched: true })} />
+          {segment ? (
+            <>
+              <label>Faixa etária
+                <select value={editing.ageGroup ?? ""} onChange={(e) => setEditing((cur) => cur && { ...cur, ageGroup: (e.target.value || null) as AgeGroup | null })}>
+                  <option value="">Todas</option>
+                  {(Object.keys(AGE_GROUP_LABEL) as AgeGroup[]).map((v) => <option key={v} value={v}>{AGE_GROUP_LABEL[v]}</option>)}
+                </select>
+              </label>
+              <label>Gênero
+                <select value={editing.gender ?? ""} onChange={(e) => setEditing((cur) => cur && { ...cur, gender: (e.target.value || null) as Gender | null })}>
+                  <option value="">Todos</option>
+                  {(Object.keys(GENDER_LABEL) as Gender[]).map((v) => <option key={v} value={v}>{(editing.ageGroup === "INFANTIL" ? KIDS_GENDER_LABEL : GENDER_LABEL)[v]}</option>)}
+                </select>
+              </label>
+              <p className="field-hint span-2">Mostra: <strong>{segmentText(editing)}</strong> · leva para <code>{audienceHref(editing)}</code>{editing.gender && editing.gender !== "UNISSEX" && " (inclui os unissex)"}</p>
+            </>
+          ) : (
+            <SlugField value={editing.slug} name={editing.name} prefix={`/produtos?${{ classes: "classe", audiences: "publico", brands: "marca" }[resource]}=`} onChange={(slug) => setEditing((cur) => cur && { ...cur, slug, slugTouched: true })} />
+          )}
           {imageHint && <ImageField label="Foto na home" value={editing.imageUrl} onChange={(imageUrl) => setEditing((cur) => cur && { ...cur, imageUrl })} hint={imageHint} />}
         </fieldset>
         <Notice error={formError} />
@@ -126,9 +161,9 @@ export function TaxonomyAdmin({ resource, title, hint, noun, newLabel, usage, de
             <tbody>
               {items.map((item, i) => (
                 <tr key={item.id} className={item.active === false ? "is-off" : undefined}>
-                  <td><MoveButtons index={i} total={items.length} onMove={(d) => run(() => reorder(items, i, d, (x) => api.admin.update(resource, x.id, body(x, !!imageHint))))} /></td>
+                  <td><MoveButtons index={i} total={items.length} onMove={(d) => run(() => reorder(items, i, d, (x) => api.admin.update(resource, x.id, body(x, opts))))} /></td>
                   {imageHint && <td><Thumb url={item.imageUrl} /></td>}
-                  <td><strong>{item.name}</strong><br /><small>{item.slug}</small></td>
+                  <td><strong>{item.name}</strong><br /><small>{segment ? segmentText(item) : item.slug}</small></td>
                   <td>{item._count?.[usage.key] ?? 0}</td>
                   {activatable && (
                     <td>
@@ -139,7 +174,7 @@ export function TaxonomyAdmin({ resource, title, hint, noun, newLabel, usage, de
                     </td>
                   )}
                   <td className="row-actions">
-                    <button type="button" className="link-btn" onClick={() => setEditing({ id: item.id, name: item.name, slug: item.slug, slugTouched: true, sortOrder: item.sortOrder, imageUrl: item.imageUrl })}>Editar</button>
+                    <button type="button" className="link-btn" onClick={() => setEditing({ id: item.id, name: item.name, slug: item.slug, slugTouched: true, sortOrder: item.sortOrder, imageUrl: item.imageUrl, ageGroup: item.ageGroup, gender: item.gender })}>Editar</button>
                     <ConfirmButton message={deleteMessage} onConfirm={() => run(() => api.admin.remove(resource, item.id))}>Excluir</ConfirmButton>
                   </td>
                 </tr>

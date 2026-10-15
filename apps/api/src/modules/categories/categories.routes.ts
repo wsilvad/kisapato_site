@@ -2,19 +2,30 @@ import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../../lib/prisma.js";
 import { seloWhere, visibleProductWhere } from "../products/products.service.js";
+import { ageGroupsOf, genderWhere, gendersOf } from "../products/segment.js";
 
 export const categoriesRouter = Router();
 
-/** Categorias ativas; com `?selo=` e/ou `?audience=` só as que têm produtos visíveis naquela seleção (menu da loja). */
+/**
+ * Categorias ativas; com `?selo=`, `?ageGroup=` e/ou `?gender=` só as que têm produtos visíveis naquela seleção
+ * (menu da loja).
+ */
 categoriesRouter.get("/", async (req, res) => {
-  const { selo, audience } = z.object({ selo: z.enum(["lancamento", "promocao", "destaque"]).optional(), audience: z.string().optional() }).parse(req.query);
+  const { selo, ageGroup, gender } = z
+    .object({ selo: z.enum(["lancamento", "promocao", "destaque"]).optional(), ageGroup: z.string().optional(), gender: z.string().optional() })
+    .parse(req.query);
+  const ages = ageGroupsOf((ageGroup ?? "").split(","));
+  const genders = gendersOf((gender ?? "").split(","));
+  const conditions = [
+    ...(selo ? [seloWhere(selo)] : []),
+    ...(ages.length > 0 ? [{ ageGroup: { in: ages } }] : []),
+    ...(genders.length > 0 ? [genderWhere(genders)] : []),
+  ];
   const categories = await prisma.category.findMany({
     where: {
       active: true,
       OR: [{ classId: null }, { productClass: { active: true } }],
-      ...((selo || audience) && {
-        products: { some: { AND: [visibleProductWhere, ...(selo ? [seloWhere(selo)] : []), ...(audience ? [{ audiences: { some: { slug: audience } } }] : [])] } },
-      }),
+      ...(conditions.length > 0 && { products: { some: { AND: [visibleProductWhere, ...conditions] } } }),
     },
     include: { productClass: true },
     orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
@@ -22,7 +33,7 @@ categoriesRouter.get("/", async (req, res) => {
   res.json(categories);
 });
 
-/** Classes (Calçados, Acessórios…) e públicos (Feminino, Masculino…) usados nos filtros da loja. */
+/** Classes (Calçados, Acessórios…) e atalhos de público (Feminino, Infantil…) da loja. */
 export const classesRouter = Router();
 classesRouter.get("/", async (_req, res) => {
   res.json(await prisma.productClass.findMany({ where: { active: true }, orderBy: [{ sortOrder: "asc" }, { name: "asc" }] }));

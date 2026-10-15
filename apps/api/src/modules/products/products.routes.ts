@@ -10,7 +10,7 @@ productsRouter.get("/", async (req, res) => {
 });
 
 productsRouter.get("/facets", async (req, res) => {
-  res.json(await productFacets(productFiltersQuery.pick({ selo: true, search: true }).parse(req.query)));
+  res.json(await productFacets(productFiltersQuery.pick({ selo: true, search: true, ageGroup: true }).parse(req.query)));
 });
 
 productsRouter.get("/:slug/related", async (req, res) => {

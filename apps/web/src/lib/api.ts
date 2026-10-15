@@ -66,26 +66,25 @@ export interface ShippingAddress {
 }
 
 export const api = {
-  /** `category`, `audience`, `brand`, `color` e `size` aceitam vários valores separados por vírgula. */
-  listProducts(params: { page?: number; pageSize?: number; category?: string; productClass?: string; audience?: string; brand?: string; color?: string; size?: string; minPrice?: string; maxPrice?: string; sort?: string; selo?: string; slugs?: string; search?: string } = {}) {
+  /** `category`, `ageGroup`, `gender`, `brand`, `color` e `size` aceitam vários valores separados por vírgula. */
+  listProducts(params: { page?: number; pageSize?: number; category?: string; productClass?: string; ageGroup?: string; gender?: string; brand?: string; color?: string; size?: string; minPrice?: string; maxPrice?: string; sort?: string; selo?: string; slugs?: string; search?: string } = {}) {
     const query = new URLSearchParams();
     for (const [key, value] of Object.entries(params)) {
       if (value !== undefined) query.set(key, String(value));
     }
     return request<Paginated<Product>>(`/products?${query}`);
   },
-  /** Opções do painel de filtros para a seleção (`selo`/`search`) informada. */
-  productFacets(params: { selo?: string; search?: string } = {}) {
+  /** Opções do painel de filtros para a seleção (`selo`/`search`); `ageGroup` limita a contagem por gênero. */
+  productFacets(params: { selo?: string; search?: string; ageGroup?: string } = {}) {
     const query = new URLSearchParams();
     for (const [key, value] of Object.entries(params)) if (value) query.set(key, value);
     return request<Facets>(`/products/facets?${query}`);
   },
   getProduct: (slug: string) => request<Product>(`/products/${encodeURIComponent(slug)}`),
-  /** Com `selo`, só as categorias que têm produtos naquela seleção (menu da loja). */
-  listCategories(selo?: string, audience?: string) {
+  /** Com `selo`, faixa ou gênero, só as categorias que têm produtos naquela seleção (menu da loja). */
+  listCategories(params: { selo?: string; ageGroup?: string; gender?: string } = {}) {
     const query = new URLSearchParams();
-    if (selo) query.set("selo", selo);
-    if (audience) query.set("audience", audience);
+    for (const [key, value] of Object.entries(params)) if (value) query.set(key, value);
     return request<Category[]>(`/categories${query.size ? `?${query}` : ""}`);
   },
   /** "Compre junto": peças de outras categorias que combinam com o produto. */

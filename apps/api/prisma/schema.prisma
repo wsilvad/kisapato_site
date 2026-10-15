@@ -24,6 +24,19 @@ enum StockMovementType {
   ADJUSTMENT
 }
 
+/// Faixa etária do produto.
+enum AgeGroup {
+  ADULTO
+  INFANTIL
+}
+
+/// Gênero do produto; unissex aparece tanto em feminino quanto em masculino.
+enum Gender {
+  FEMININO
+  MASCULINO
+  UNISSEX
+}
+
 enum OrderStatus {
   PENDING
   PAID
@@ -74,7 +87,8 @@ model Brand {
   @@map("brands")
 }
 
-/// Público-alvo (ex.: Feminino, Masculino, Infantil). Um produto pode ter vários.
+/// Atalho de público (ex.: Feminino, Masculino, Infantil, Menina): um cartão da home que leva aos produtos
+/// de uma faixa etária e/ou gênero. Vazio em `ageGroup`/`gender` significa "todos".
 model Audience {
   id        String    @id @default(uuid())
   name      String
@@ -82,6 +96,9 @@ model Audience {
   /// Foto do cartão "Compre por público" na home; sem foto, o público não aparece lá.
   imageUrl  String?
   sortOrder Int       @default(0)
+  ageGroup  AgeGroup?
+  gender    Gender?
+  /// Legado: vínculo antigo produto↔público, trocado por `Product.ageGroup`/`gender`. Sai depois do deploy.
   products  Product[]
 
   @@map("audiences")
@@ -124,6 +141,9 @@ model Product {
   active           Boolean          @default(true)
   categoryId       String
   category         Category         @relation(fields: [categoryId], references: [id])
+  ageGroup         AgeGroup         @default(ADULTO)
+  gender           Gender           @default(UNISSEX)
+  /// Legado (ver `Audience.products`); a loja usa `ageGroup` e `gender`.
   audiences        Audience[]
   variants         ProductVariant[]
   createdAt        DateTime         @default(now())
@@ -131,6 +151,7 @@ model Product {
 
   @@index([categoryId])
   @@index([brandId])
+  @@index([ageGroup, gender])
   @@map("products")
 }
 

@@ -8,6 +8,7 @@ import { recordMovement } from "../stock/stock.service.js";
 import { stockRouter } from "../stock/stock.routes.js";
 import { reportsRouter } from "../reports/reports.routes.js";
 import { fulfillmentRouter } from "../fulfillment/fulfillment.routes.js";
+import { genderWhere } from "../products/segment.js";
 
 export const adminRouter = Router();
 adminRouter.use(requireAdmin);
@@ -60,16 +61,24 @@ adminRouter.delete("/classes/:id", async (req, res) => {
   res.status(204).end();
 });
 
-/* Públicos-alvo (Feminino, Masculino, Infantil…) */
-const audienceBody = classBody.extend({ imageUrl: z.string().nullish() });
+/* Públicos-alvo: atalhos (Feminino, Infantil, Menina…) que apontam para uma faixa etária e/ou um gênero. */
+const audienceBody = classBody.extend({
+  imageUrl: z.string().nullish(),
+  ageGroup: z.enum(["ADULTO", "INFANTIL"]).nullish(),
+  gender: z.enum(["FEMININO", "MASCULINO", "UNISSEX"]).nullish(),
+});
 
+/** Cada atalho vem com quantos produtos ativos ele traz, pela mesma regra da loja. */
 adminRouter.get("/audiences", async (_req, res) => {
-  res.json(
-    await prisma.audience.findMany({
-      include: { _count: { select: { products: true } } },
-      orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
-    }),
+  const audiences = await prisma.audience.findMany({ orderBy: [{ sortOrder: "asc" }, { name: "asc" }] });
+  const counts = await Promise.all(
+    audiences.map((a) =>
+      prisma.product.count({
+        where: { active: true, ...(a.ageGroup && { ageGroup: a.ageGroup }), ...(a.gender && genderWhere([a.gender])) },
+      }),
+    ),
   );
+  res.json(audiences.map((a, i) => ({ ...a, _count: { products: counts[i] } })));
 });
 adminRouter.post("/audiences", async (req, res) => {
   res.status(201).json(await prisma.audience.create({ data: audienceBody.parse(req.body) }));
@@ -77,7 +86,7 @@ adminRouter.post("/audiences", async (req, res) => {
 adminRouter.put("/audiences/:id", async (req, res) => {
   res.json(await prisma.audience.update({ where: { id: req.params.id }, data: audienceBody.parse(req.body) }));
 });
-/** Excluir um público só desfaz o vínculo com os produtos; os produtos continuam cadastrados. */
+/** Excluir um atalho não mexe nos produtos. */
 adminRouter.delete("/audiences/:id", async (req, res) => {
   await prisma.audience.delete({ where: { id: req.params.id } });
   res.status(204).end();
@@ -189,11 +198,12 @@ const productBody = z.object({
   images: z.array(z.string()).default([]),
   active: z.boolean().default(true),
   categoryId: z.string().min(1),
-  audienceIds: z.array(z.string()).default([]),
+  ageGroup: z.enum(["ADULTO", "INFANTIL"]).default("ADULTO"),
+  gender: z.enum(["FEMININO", "MASCULINO", "UNISSEX"]).default("UNISSEX"),
   variants: z.array(variantBody).default([]),
 });
 
-const productInclude = { brand: true, category: { include: { productClass: true } }, audiences: true, variants: true };
+const productInclude = { brand: true, category: { include: { productClass: true } }, variants: true };
 /** No admin o produto vem com o custo (omitido por padrão no cliente do Prisma). */
 const withCost = { omit: { costPrice: false } } as const;
 
@@ -220,10 +230,10 @@ adminRouter.get("/products/:id", async (req, res) => {
   res.json(product);
 });
 adminRouter.post("/products", async (req, res) => {
-  const { variants, audienceIds, ...data } = productBody.parse(req.body);
+  const { variants, ...data } = productBody.parse(req.body);
   const product = await prisma.$transaction(async (tx) => {
     const created = await tx.product.create({
-      data: { ...data, audiences: { connect: audienceIds.map((id) => ({ id })) }, variants: { create: withSkus(data.slug, variants) } },
+      data: { ...data, variants: { create: withSkus(data.slug, variants) } },
       ...withCost,
       include: productInclude,
     });
@@ -239,7 +249,7 @@ adminRouter.post("/products", async (req, res) => {
  * removidas, salvo as já vendidas, e as demais mantêm o id para não quebrar sacolas em aberto.
  */
 adminRouter.put("/products/:id", async (req, res) => {
-  const { variants: rawVariants, audienceIds, ...data } = productBody.parse(req.body);
+  const { variants: rawVariants, ...data } = productBody.parse(req.body);
   const variants = withSkus(data.slug, rawVariants);
   const id = req.params.id;
   const kept = variants.map((v) => ({ size: v.size, color: v.color }));
@@ -252,7 +262,6 @@ adminRouter.put("/products/:id", async (req, res) => {
       where: { id },
       data: {
         ...data,
-        audiences: { set: audienceIds.map((audienceId) => ({ id: audienceId })) },
         variants: {
           upsert: variants.map((v) => ({
             where: { productId_size_color: { productId: id, size: v.size, color: v.color } },

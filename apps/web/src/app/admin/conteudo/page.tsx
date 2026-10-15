@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Notice, PageHead, Switch, useAdminList } from "@/components/admin/kit";
 import { api } from "@/lib/api";
+import { audienceHref } from "@/lib/segment";
 import type { Audience, Brand, Category, ProductClass, SiteLink, SiteSettings } from "@/types/product";
 
 const TABS = [
@@ -113,7 +114,7 @@ export default function ContentAdmin() {
         <option value="/conta" />
         {classes.map((c) => <option key={c.id} value={`/produtos?classe=${c.slug}`}>Classe: {c.name}</option>)}
         {categories.map((c) => <option key={c.id} value={`/produtos?categoria=${c.slug}`}>Categoria: {c.name}</option>)}
-        {audiences.map((a) => <option key={a.id} value={`/produtos?publico=${a.slug}`}>Público: {a.name}</option>)}
+        {audiences.map((a) => <option key={a.id} value={audienceHref(a)}>Público: {a.name}</option>)}
         {brands.map((b) => <option key={b.id} value={`/produtos?marca=${b.slug}`}>Marca: {b.name}</option>)}
       </datalist>
 

@@ -47,7 +47,8 @@ function Categories() {
   const home = pathname === "/";
   if (!home && !pathname.startsWith("/produtos")) return null;
   // Na página inicial nada fica marcado como "atual".
-  return <CategoryStrip selo={home ? "" : (params.get("selo") ?? "")} audience={home ? "" : (params.get("publico") ?? "")} active={home ? null : (params.get("categoria") ?? "")} />;
+  const get = (key: string) => (home ? "" : (params.get(key) ?? ""));
+  return <CategoryStrip selo={get("selo")} faixa={get("faixa")} genero={get("genero")} active={home ? null : get("categoria")} />;
 }
 
 export function Header({ topbar, nav }: Pick<SiteSettings, "topbar" | "nav">) {

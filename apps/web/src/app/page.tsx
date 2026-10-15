@@ -2,6 +2,7 @@ import Link from "next/link";
 import { HeroCarousel } from "@/components/HeroCarousel";
 import { ProductCard } from "@/components/ProductCard";
 import { api, assetUrl } from "@/lib/api";
+import { audienceHref } from "@/lib/segment";
 import { loadSettings } from "@/lib/site-settings";
 import { sampleLaunches } from "@/lib/sample-products";
 import type { Audience, Campaign, Category, Product } from "@/types/product";
@@ -89,7 +90,7 @@ export default async function HomePage() {
           <h2 className="section-title section-title-center">Compre por público</h2>
           <div className="category-grid">
             {audiences.map((audience) => (
-              <Link key={audience.id} href={`/produtos?publico=${audience.slug}`} className="category-tile">
+              <Link key={audience.id} href={audienceHref(audience)} className="category-tile">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img className="category-img" src={assetUrl(audience.imageUrl) ?? ""} alt="" />
                 <div className="category-bar">

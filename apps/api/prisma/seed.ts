@@ -1,7 +1,7 @@
 import "dotenv/config";
 import bcrypt from "bcryptjs";
 import { PrismaPg } from "@prisma/adapter-pg";
-import { PrismaClient } from "../src/generated/prisma/client.js";
+import { PrismaClient, type Prisma } from "../src/generated/prisma/client.js";
 
 const prisma = new PrismaClient({
   adapter: new PrismaPg({ connectionString: process.env.DIRECT_URL || process.env.DATABASE_URL }),
@@ -12,11 +12,11 @@ const classes = [
   { name: "Acessórios", slug: "acessorios", sortOrder: 1 },
 ];
 
-const audiences = [
-  { name: "Feminino", slug: "feminino", sortOrder: 0 },
-  { name: "Masculino", slug: "masculino", sortOrder: 1 },
-  { name: "Infantil", slug: "infantil", sortOrder: 2 },
-  { name: "Unissex", slug: "unissex", sortOrder: 3 },
+const audiences: Prisma.AudienceCreateInput[] = [
+  { name: "Feminino", slug: "feminino", sortOrder: 0, ageGroup: "ADULTO", gender: "FEMININO" },
+  { name: "Masculino", slug: "masculino", sortOrder: 1, ageGroup: "ADULTO", gender: "MASCULINO" },
+  { name: "Infantil", slug: "infantil", sortOrder: 2, ageGroup: "INFANTIL" },
+  { name: "Unissex", slug: "unissex", sortOrder: 3, gender: "UNISSEX" },
 ];
 
 const categories = [

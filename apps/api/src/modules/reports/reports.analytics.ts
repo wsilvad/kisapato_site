@@ -272,7 +272,7 @@ export function buildOverview(orders: OrderRow[], period: Period, firstPurchase:
     byClass: rank(sold, (i) => [i.className ?? "Sem classe"]),
     byCategory: rank(sold, (i) => [i.categoryName]),
     byBrand: rank(sold, (i) => [i.brandName ?? "Sem marca"]),
-    // Um produto com vários públicos conta em cada um deles, então a soma pode passar de 100%.
+    // Cada produto tem um único público (faixa + gênero, ex.: "Infantil · Menina").
     byAudience: rank(sold, (i) => (i.audiences.length > 0 ? i.audiences : ["Sem público"])),
   };
 }
