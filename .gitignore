@@ -23,3 +23,6 @@ apps/api/src/generated/
 apps/api/uploads/
 /uploads/
 apps/api/uploads-originais/
+
+# pacotes ZIP para a Discloud
+deploy-out/
