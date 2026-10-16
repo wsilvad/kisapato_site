@@ -143,6 +143,45 @@ export async function productFacets({ selo, search, ageGroup }: Pick<ProductFilt
   };
 }
 
+type Segments = { adulto: { total: number; feminino: number; masculino: number }; infantil: { total: number; feminino: number; masculino: number } };
+type MenuSegments = Record<string, { segments: Segments; total: number }>;
+const MENU_SELOS = ["", "lancamento", "promocao", "destaque"] as const;
+const MENU_TTL_MS = 30_000;
+let menuCache: { at: number; value: Promise<MenuSegments> } | null = null;
+
+/**
+ * Contagens do menu do topo (Feminino, Masculino e Infantil de cada seleção: tudo, lançamentos, promoções,
+ * destaques) numa chamada só, com contagem agrupada no banco, sem carregar os produtos. Fica 30 s em memória:
+ * o menu é aberto o tempo todo e a contagem exata ao segundo não importa.
+ */
+export function menuSegments(): Promise<MenuSegments> {
+  if (menuCache && Date.now() - menuCache.at < MENU_TTL_MS) return menuCache.value;
+  const value = Promise.all(
+    MENU_SELOS.map(async (selo) => {
+      const groups = await prisma.product.groupBy({
+        by: ["ageGroup", "gender"],
+        where: { AND: [visibleProductWhere, ...(selo ? [seloWhere(selo)] : [])] },
+        _count: { _all: true },
+      });
+      const segments: Segments = { adulto: { total: 0, feminino: 0, masculino: 0 }, infantil: { total: 0, feminino: 0, masculino: 0 } };
+      let total = 0;
+      for (const g of groups) {
+        const n = g._count._all;
+        const s = segments[g.ageGroup === "INFANTIL" ? "infantil" : "adulto"];
+        total += n;
+        s.total += n;
+        // Unissex conta nos dois, como no filtro.
+        if (g.gender !== "MASCULINO") s.feminino += n;
+        if (g.gender !== "FEMININO") s.masculino += n;
+      }
+      return [selo, { segments, total }] as const;
+    }),
+  ).then((entries) => Object.fromEntries(entries));
+  menuCache = { at: Date.now(), value };
+  value.catch(() => (menuCache = null));
+  return value;
+}
+
 export async function getProductBySlug(slug: string) {
   const product = await prisma.product.findFirst({
     where: { AND: [visibleProductWhere, { slug }] },

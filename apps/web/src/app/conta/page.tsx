@@ -25,7 +25,7 @@ export default function ContaPage() {
     <div className="page">
       <h1 className="page-title">Minha conta</h1>
       <p>{user.name} · {user.email}</p>
-      <h2>Pedidos</h2>
+      <h2 id="pedidos">Pedidos</h2>
       {orders.length === 0 ? <p>Você ainda não fez pedidos.</p> : (
         <ul className="order-list">
           {orders.map((o) => (

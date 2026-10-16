@@ -7,7 +7,7 @@ export const homeRouter = Router();
 /** Banners vigentes, vitrines já com os produtos selecionados pela regra (selo) e categorias em destaque. */
 homeRouter.get("/", async (_req, res) => {
   const now = new Date();
-  const [campaigns, showcases, categories, audiences] = await Promise.all([
+  const [campaigns, showcases, categories, audiences, stories] = await Promise.all([
     prisma.campaign.findMany({
       where: {
         active: true,
@@ -21,6 +21,8 @@ homeRouter.get("/", async (_req, res) => {
     prisma.showcase.findMany({ where: { active: true }, orderBy: { sortOrder: "asc" } }),
     prisma.category.findMany({ where: { showOnHome: true, active: true, OR: [{ classId: null }, { productClass: { active: true } }] }, orderBy: [{ sortOrder: "asc" }, { name: "asc" }] }),
     prisma.audience.findMany({ where: { imageUrl: { not: null } }, orderBy: [{ sortOrder: "asc" }, { name: "asc" }] }),
+    // Os stories são um complemento: se a tabela ainda não existir (migração pendente), a home abre sem eles.
+    prisma.story.findMany({ where: { active: true }, orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }] }).catch(() => []),
   ]);
 
   const withProducts = await Promise.all(
@@ -35,5 +37,5 @@ homeRouter.get("/", async (_req, res) => {
     })),
   );
 
-  res.json({ campaigns, showcases: withProducts, categories, audiences });
+  res.json({ campaigns, showcases: withProducts, categories, audiences, stories });
 });

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { MAX_MEDIA_BYTES, isVideoUrl } from "@/lib/media";
 import { api, assetUrl, thumbUrl } from "@/lib/api";
 
 export const slugify = (value: string) =>
@@ -163,7 +164,7 @@ export function ImageField({ label, value, onChange, hint }: { label: string; va
         <input
           ref={input}
           type="file"
-          accept="image/jpeg,image/png,image/webp,image/avif"
+          accept="image/jpeg,image/png,image/webp,image/avif,image/gif"
           hidden
           onChange={async (e) => {
             const [url] = await upload(e.target.files);
@@ -172,6 +173,70 @@ export function ImageField({ label, value, onChange, hint }: { label: string; va
               setError("");
               onChange(url);
             }
+          }}
+        />
+      </div>
+      {hint && <small className="field-hint">{hint}</small>}
+      <Notice error={error} />
+    </div>
+  );
+}
+
+/** Mídia de um cartão: vídeo (MP4, WebM, MOV), GIF animado ou foto; o que vier até 15 MB. */
+export function MediaField({ label, value, onChange, hint }: { label: string; value: string | null | undefined; onChange: (url: string | null) => void; hint?: string }) {
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  const input = useRef<HTMLInputElement>(null);
+  const src = assetUrl(value);
+
+  async function pick(file: File | undefined) {
+    if (!file) return;
+    if (file.size > MAX_MEDIA_BYTES) return setError(`O arquivo tem ${(file.size / 1048576).toFixed(1)} MB; o limite é 15 MB. Reduza o tamanho e tente de novo.`);
+    setBusy(true);
+    try {
+      const url = file.type.startsWith("video/") ? (await api.admin.uploadVideo(file)).url : (await api.admin.upload([file])).urls[0];
+      if (url) {
+        setError("");
+        onChange(url);
+      }
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="field">
+      <span className="field-label">{label}</span>
+      <div className="image-field">
+        {!src ? (
+          <div className="image-empty">Sem mídia</div>
+        ) : isVideoUrl(value) ? (
+          <video src={src} muted loop autoPlay playsInline />
+        ) : (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={src} alt="" />
+        )}
+        <div className="image-actions">
+          <button type="button" className="btn-small" disabled={busy} onClick={() => input.current?.click()}>
+            {busy ? "Enviando…" : src ? "Trocar" : "Escolher vídeo ou GIF"}
+          </button>
+          {src && (
+            <button type="button" className="link-btn danger" onClick={() => onChange(null)}>
+              Remover
+            </button>
+          )}
+        </div>
+        <input
+          ref={input}
+          type="file"
+          accept="video/mp4,video/webm,video/quicktime,image/gif,image/jpeg,image/png,image/webp,image/avif"
+          hidden
+          onChange={async (e) => {
+            const file = e.target.files?.[0];
+            e.target.value = "";
+            await pick(file);
           }}
         />
       </div>

@@ -1,14 +1,15 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useState } from "react";
 import { api } from "@/lib/api";
 import { useSession } from "@/lib/session";
 
-export default function AuthPage() {
+/** Os links "Entre ou Cadastre-se" do cabeçalho usam `?modo=cadastro` para abrir direto o cadastro. */
+function AuthForm() {
   const router = useRouter();
   const { signIn } = useSession();
-  const [mode, setMode] = useState<"login" | "register">("login");
+  const [mode, setMode] = useState<"login" | "register">(useSearchParams().get("modo") === "cadastro" ? "register" : "login");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -53,5 +54,13 @@ export default function AuthPage() {
         {mode === "login" ? "Não tem conta? Cadastre-se" : "Já tenho conta"}
       </button>
     </div>
+  );
+}
+
+export default function AuthPage() {
+  return (
+    <Suspense fallback={null}>
+      <AuthForm />
+    </Suspense>
   );
 }

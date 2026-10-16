@@ -1,11 +1,12 @@
 import Link from "next/link";
 import { HeroCarousel } from "@/components/HeroCarousel";
+import { StoriesRow } from "@/components/StoriesRow";
 import { ProductCard } from "@/components/ProductCard";
 import { api, assetUrl } from "@/lib/api";
 import { audienceHref } from "@/lib/segment";
 import { loadSettings } from "@/lib/site-settings";
 import { sampleLaunches } from "@/lib/sample-products";
-import type { Audience, Campaign, Category, Product } from "@/types/product";
+import type { Audience, Campaign, Category, Product, Story } from "@/types/product";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +16,7 @@ interface Section {
   products: Product[];
 }
 
-async function loadHome(): Promise<{ campaigns: Campaign[]; categories: Category[]; audiences: Audience[]; sections: Section[] }> {
+async function loadHome(): Promise<{ campaigns: Campaign[]; categories: Category[]; audiences: Audience[]; stories: Story[]; sections: Section[] }> {
   try {
     const home = await api.home();
     const sections = home.showcases
@@ -26,10 +27,10 @@ async function loadHome(): Promise<{ campaigns: Campaign[]; categories: Category
       const { items } = await api.listProducts({ page: 1 });
       if (items.length > 0) sections.push({ id: "latest", title: "Lançamentos", products: items.slice(0, 4) });
     }
-    return { campaigns: home.campaigns, categories: home.categories, audiences: home.audiences ?? [], sections };
+    return { campaigns: home.campaigns, categories: home.categories, audiences: home.audiences ?? [], stories: home.stories ?? [], sections };
   } catch {
     // API indisponível: usa os produtos de exemplo do protótipo
-    return { campaigns: [], categories: [], audiences: [], sections: [{ id: "sample", title: "Lançamentos", products: sampleLaunches }] };
+    return { campaigns: [], categories: [], audiences: [], stories: [], sections: [{ id: "sample", title: "Lançamentos", products: sampleLaunches }] };
   }
 }
 
@@ -52,13 +53,15 @@ function ProductSection({ title, products }: { title: string; products: Product[
 }
 
 export default async function HomePage() {
-  const [{ campaigns, categories, audiences, sections }, settings] = await Promise.all([loadHome(), loadSettings()]);
+  const [{ campaigns, categories, audiences, stories, sections }, settings] = await Promise.all([loadHome(), loadSettings()]);
   const { promo, benefits } = settings;
   const [first, ...rest] = sections;
 
   return (
     <>
       <HeroCarousel campaigns={campaigns} />
+
+      <StoriesRow stories={stories} />
 
       {categories.length > 0 && (
         <section className="section">

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Badge, ConfirmButton, EmptyState, ImageField, MoveButtons, Notice, PageHead, Switch, formatDateTime, reorder, toLocalInput, useAdminList } from "@/components/admin/kit";
 import { CropEditor } from "@/components/admin/CropEditor";
+import { LinkPicker } from "@/components/admin/LinkPicker";
 import { api, assetUrl } from "@/lib/api";
 import { cropStyle, desktopCrop, mobileCrop, type Crop } from "@/lib/crop";
 import type { Campaign } from "@/types/product";
@@ -33,7 +34,7 @@ const fromCampaign = (c: Campaign): FormState => ({
 });
 
 const toBody = (f: FormState) => ({
-  eyebrow: f.eyebrow.trim() || null, title: f.title.trim(), body: f.body.trim() || null, buttonLabel: f.buttonLabel.trim() || null,
+  eyebrow: f.eyebrow.trim() || null, title: f.title.trim(), body: f.body.trim() || null, buttonLabel: f.buttonLabel.trim().toLocaleUpperCase("pt-BR") || null,
   buttonUrl: f.buttonUrl.trim() || null, desktopImageUrl: f.desktopImageUrl, mobileImageUrl: f.mobileImageUrl,
   desktopFocusX: f.desktopCrop.x, desktopFocusY: f.desktopCrop.y, desktopZoom: f.desktopCrop.zoom,
   mobileFocusX: f.mobileCrop.x, mobileFocusY: f.mobileCrop.y, mobileZoom: f.mobileCrop.zoom,
@@ -155,28 +156,34 @@ function CampaignForm({ initial, onCancel, onSaved }: { initial: FormState; onCa
         <label className="span-2">Título<input value={f.title} required onChange={(e) => set("title", e.target.value)} /></label>
         <label className="span-2">Chamada superior (pequena, acima do título)<input value={f.eyebrow} onChange={(e) => set("eyebrow", e.target.value)} placeholder="Nova coleção" /></label>
         <label className="span-2">Texto de apoio<textarea rows={3} value={f.body} onChange={(e) => set("body", e.target.value)} /></label>
-        <label>Rótulo do botão<input value={f.buttonLabel} onChange={(e) => set("buttonLabel", e.target.value)} placeholder="Ver coleção" /></label>
-        <label>Link do botão<input value={f.buttonUrl} onChange={(e) => set("buttonUrl", e.target.value)} placeholder="/produtos" /></label>
+      </fieldset>
+      <fieldset>
+        <legend>Botão do banner</legend>
+        <label>Nome do botão (sempre em maiúsculas)
+          <input value={f.buttonLabel} maxLength={40} onChange={(e) => set("buttonLabel", e.target.value.toLocaleUpperCase("pt-BR"))} placeholder="COMPRE AGORA" />
+        </label>
+        <LinkPicker value={f.buttonUrl} onChange={(url) => set("buttonUrl", url)} />
+        <small className="span-2 field-hint">O botão fica centralizado na parte de baixo do banner. Sem nome, aparece &quot;CONFIRA&quot;; sem destino, o banner fica sem botão.</small>
       </fieldset>
       <fieldset>
         <legend>Imagens</legend>
-        <ImageField label="Imagem do computador" value={f.desktopImageUrl} onChange={(url) => set("desktopImageUrl", url)} hint="Horizontal, ao menos 1640 × 1160 px." />
+        <ImageField label="Imagem do computador" value={f.desktopImageUrl} onChange={(url) => set("desktopImageUrl", url)} hint="Horizontal, ao menos 1920 × 1080 px: a foto ocupa a tela inteira da home." />
         <CropEditor
           title="Enquadramento no computador"
-          hint="A foto preenche a área ao lado do texto e é cortada conforme a largura da tela. Escolha o ponto que nunca pode ficar de fora."
+          hint="A foto ocupa a tela inteira, com o texto por cima (canto inferior esquerdo), e é cortada conforme o formato da tela. Escolha o ponto que nunca pode ficar de fora."
           src={f.desktopImageUrl}
           value={f.desktopCrop}
           onChange={(crop) => set("desktopCrop", crop)}
-          frames={[{ label: "Notebook 1280", width: 660, height: 580 }, { label: "Desktop 1440", width: 820, height: 580 }, { label: "Tela grande 1920", width: 1300, height: 580 }]}
+          frames={[{ label: "Notebook 1366", width: 1366, height: 768 }, { label: "Desktop 1440", width: 1440, height: 900 }, { label: "Tela grande 1920", width: 1920, height: 1080 }]}
         />
-        <ImageField label="Imagem do celular (opcional)" value={f.mobileImageUrl} onChange={(url) => set("mobileImageUrl", url)} hint="Sem ela, o celular usa a imagem do computador." />
+        <ImageField label="Imagem do celular (opcional)" value={f.mobileImageUrl} onChange={(url) => set("mobileImageUrl", url)} hint="Vertical, ao menos 1080 × 1920 px. Sem ela, o celular usa a imagem do computador." />
         <CropEditor
           title="Enquadramento no celular"
           hint={f.mobileImageUrl ? "Enquadramento da imagem do celular." : "Sem imagem própria para o celular, é usada a do computador; aqui você escolhe um enquadramento só para o celular."}
           src={f.mobileImageUrl ?? f.desktopImageUrl}
           value={f.mobileCrop}
           onChange={(crop) => set("mobileCrop", crop)}
-          frames={[{ label: "Celular 375", width: 375, height: 260 }, { label: "Celular grande 430", width: 430, height: 260 }]}
+          frames={[{ label: "Celular 375", width: 375, height: 812 }, { label: "Celular grande 430", width: 430, height: 932 }]}
         />
       </fieldset>
       <fieldset>

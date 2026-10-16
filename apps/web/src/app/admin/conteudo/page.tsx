@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Notice, PageHead, Switch, useAdminList } from "@/components/admin/kit";
+import { PAYMENT_ICONS, PaymentIcon } from "@/components/PaymentIcons";
 import { api } from "@/lib/api";
 import { audienceHref } from "@/lib/segment";
 import type { Audience, Brand, Category, ProductClass, SiteLink, SiteSettings } from "@/types/product";
@@ -11,6 +12,7 @@ const TABS = [
   ["promo", "Faixa promocional"],
   ["beneficios", "Benefícios"],
   ["rodape", "Rodapé"],
+  ["paginas", "Páginas"],
   ["frete", "Frete"],
 ] as const;
 type Tab = (typeof TABS)[number][0];
@@ -140,6 +142,15 @@ export default function ContentAdmin() {
               </div>
             </fieldset>
             <fieldset>
+              <legend>Redes sociais (ícones no rodapé e no menu do celular)</legend>
+              {([["instagram", "Instagram", "https://www.instagram.com/kisapato"], ["facebook", "Facebook", "https://www.facebook.com/kisapato"], ["pinterest", "Pinterest", "https://br.pinterest.com/kisapato"], ["tiktok", "TikTok", "https://www.tiktok.com/@kisapato"]] as const).map(([key, label, example]) => (
+                <label key={key}>{label}
+                  <input type="url" value={s.social[key]} placeholder={example} onChange={(e) => update({ social: { ...s.social, [key]: e.target.value } })} />
+                </label>
+              ))}
+              <small className="span-2 field-hint">Só aparecem os ícones das redes com endereço preenchido.</small>
+            </fieldset>
+            <fieldset>
               <legend>Menu principal (até 10 links)</legend>
               <div className="span-2">
                 <LinkRows
@@ -185,12 +196,38 @@ export default function ContentAdmin() {
           <>
             <fieldset>
               <legend>Dados da loja</legend>
-              <label>Título do bloco<input value={s.footer.storeTitle} onChange={(e) => update({ footer: { ...s.footer, storeTitle: e.target.value } })} /></label>
               <label>Endereço<input value={s.footer.address} onChange={(e) => update({ footer: { ...s.footer, address: e.target.value } })} /></label>
               <label>Telefone / WhatsApp<input value={s.footer.phone} onChange={(e) => update({ footer: { ...s.footer, phone: e.target.value } })} /></label>
               <label>Horário de atendimento<input value={s.footer.hours} onChange={(e) => update({ footer: { ...s.footer, hours: e.target.value } })} /></label>
               <label>CNPJ<input value={s.footer.cnpj} onChange={(e) => update({ footer: { ...s.footer, cnpj: e.target.value } })} /></label>
-              <label>Formas de pagamento (linha inferior)<input value={s.footer.payments} onChange={(e) => update({ footer: { ...s.footer, payments: e.target.value } })} /></label>
+            </fieldset>
+            <fieldset>
+              <legend>Formas de pagamento (logos no rodapé)</legend>
+              <div className="span-2 pay-pick">
+                {Object.entries(PAYMENT_ICONS).map(([key, icon]) => {
+                  const on = (s.footer.paymentMethods ?? []).includes(key);
+                  return (
+                    <label key={key} className={`pay-option${on ? " is-on" : ""}`}>
+                      <input
+                        type="checkbox"
+                        checked={on}
+                        onChange={() =>
+                          update({
+                            footer: {
+                              ...s.footer,
+                              // Mantém sempre a ordem padrão das bandeiras.
+                              paymentMethods: Object.keys(PAYMENT_ICONS).filter((k) => (k === key ? !on : (s.footer.paymentMethods ?? []).includes(k))),
+                            },
+                          })
+                        }
+                      />
+                      <PaymentIcon method={key} />
+                      <span>{icon.label}</span>
+                    </label>
+                  );
+                })}
+              </div>
+              <small className="span-2 field-hint">Marque as bandeiras e meios aceitos pela loja; nenhuma marcada esconde o bloco.</small>
             </fieldset>
             {s.footer.columns.map((column, ci) => (
               <fieldset key={ci}>
@@ -212,6 +249,30 @@ export default function ContentAdmin() {
             {s.footer.columns.length < 4 && (
               <button type="button" className="link-btn" onClick={() => update({ footer: { ...s.footer, columns: [...s.footer.columns, { title: "", links: [] }] } })}>+ Adicionar coluna de links</button>
             )}
+          </>
+        )}
+
+        {tab === "paginas" && (
+          <>
+            <p className="field-hint">
+              Páginas do rodapé (em /institucional/…). Separe os parágrafos com uma linha em branco; comece a linha com
+              &quot;## &quot; para um subtítulo e com &quot;- &quot; para um item de lista. Página sem texto fica fora do ar e some do rodapé.
+              Políticas de entrega mostra também a tabela da aba Frete.
+            </p>
+            {(s.pages ?? []).map((page, i) => (
+              <fieldset key={page.slug}>
+                <legend>
+                  {page.title || page.slug}{" "}
+                  {page.body.trim() ? (
+                    <a href={`/institucional/${page.slug}`} target="_blank" rel="noopener noreferrer" className="link-btn">ver página ↗</a>
+                  ) : (
+                    <small>(fora do ar: sem texto)</small>
+                  )}
+                </legend>
+                <label className="span-2">Título<input value={page.title} onChange={(e) => update({ pages: patchList(s.pages, i, { title: e.target.value }) })} /></label>
+                <label className="span-2">Texto<textarea rows={10} value={page.body} onChange={(e) => update({ pages: patchList(s.pages, i, { body: e.target.value }) })} /></label>
+              </fieldset>
+            ))}
           </>
         )}
 

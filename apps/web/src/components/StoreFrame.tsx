@@ -11,7 +11,7 @@ export function StoreFrame({ header, footer, children }: { header: React.ReactNo
   return (
     <>
       {!inAdmin && header}
-      <main>{children}</main>
+      <main className={inAdmin ? "main-admin" : undefined}>{children}</main>
       {!inAdmin && footer}
     </>
   );

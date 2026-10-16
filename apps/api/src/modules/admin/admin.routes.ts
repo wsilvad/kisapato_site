@@ -333,6 +333,32 @@ adminRouter.delete("/campaigns/:id", async (req, res) => {
   res.status(204).end();
 });
 
+/* Stories da home (cartões verticais com GIF) */
+const storyBody = z.object({
+  title: z.string().trim().max(60).nullish().transform((v) => v || null),
+  mediaUrl: z.string().trim().min(1, "Envie o vídeo, o GIF ou a foto do cartão"),
+  linkUrl: z.string().trim().max(300).nullish().transform((v) => v || null),
+  sortOrder: z.coerce.number().int().default(0),
+  active: z.boolean().default(true),
+});
+
+adminRouter.get("/stories", async (_req, res) => {
+  res.json(await prisma.story.findMany({ orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }] }));
+});
+adminRouter.post("/stories", async (req, res) => {
+  res.status(201).json(await prisma.story.create({ data: storyBody.parse(req.body) }));
+});
+adminRouter.put("/stories/:id", async (req, res) => {
+  res.json(await prisma.story.update({ where: { id: req.params.id }, data: storyBody.parse(req.body) }));
+});
+adminRouter.patch("/stories/:id/active", async (req, res) => {
+  res.json(await prisma.story.update({ where: { id: req.params.id }, data: activeBody.parse(req.body) }));
+});
+adminRouter.delete("/stories/:id", async (req, res) => {
+  await prisma.story.delete({ where: { id: req.params.id } });
+  res.status(204).end();
+});
+
 /* Vitrines */
 const showcaseBody = z.object({
   title: z.string().trim().min(1),

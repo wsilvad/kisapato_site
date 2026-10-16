@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { listProductsQuery, productFiltersQuery } from "./products.schemas.js";
-import { getProductBySlug, listProducts, productFacets, relatedProducts } from "./products.service.js";
+import { getProductBySlug, listProducts, menuSegments, productFacets, relatedProducts } from "./products.service.js";
 
 export const productsRouter = Router();
 
@@ -11,6 +11,10 @@ productsRouter.get("/", async (req, res) => {
 
 productsRouter.get("/facets", async (req, res) => {
   res.json(await productFacets(productFiltersQuery.pick({ selo: true, search: true, ageGroup: true }).parse(req.query)));
+});
+
+productsRouter.get("/menu-segments", async (_req, res) => {
+  res.json(await menuSegments());
 });
 
 productsRouter.get("/:slug/related", async (req, res) => {

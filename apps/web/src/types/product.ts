@@ -159,6 +159,16 @@ export interface Showcase {
   products?: Product[];
 }
 
+/** Cartão vertical da home (GIF ou foto), no estilo "stories". */
+export interface Story {
+  id: string;
+  title: string | null;
+  mediaUrl: string;
+  linkUrl: string | null;
+  sortOrder: number;
+  active: boolean;
+}
+
 export interface OrderEvent {
   id: string;
   status: Order["status"];
@@ -227,9 +237,13 @@ export interface ShippingQuote {
 export interface SiteSettings {
   shipping: { freeAbove: number; pickup: { active: boolean; label: string; note: string }; regions: ShippingRegion[] };
   topbar: string[];
+  /** Perfis da loja nas redes (ícones do cabeçalho); vazio = ícone escondido. */
+  social: { instagram: string; facebook: string; pinterest: string; tiktok: string };
   nav: (SiteLink & { highlight: boolean })[];
   promo: { active: boolean; eyebrow: string; title: string; buttonLabel: string; buttonUrl: string };
   benefits: { title: string; text: string }[];
+  /** Páginas institucionais (/institucional/<slug>); sem texto = fora do ar e fora do rodapé. */
+  pages: { slug: string; title: string; body: string }[];
   footer: {
     columns: { title: string; links: SiteLink[] }[];
     storeTitle: string;
@@ -237,7 +251,8 @@ export interface SiteSettings {
     phone: string;
     hours: string;
     cnpj: string;
-    payments: string;
+    /** Logos de pagamento do rodapé, na ordem: visa, mastercard, elo, hipercard, amex, diners, boleto, pix. */
+    paymentMethods: string[];
   };
 }
 

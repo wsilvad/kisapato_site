@@ -74,7 +74,7 @@ export default async function ProdutosPage({ searchParams }: { searchParams: Pro
 
   // Com uma faixa e/ou um gênero escolhidos, eles entram no título ("Lançamentos · Infantil · Menina").
   const segment = segmentTitle(state.faixa, state.genero);
-  const title = `${(selo && SELO_TITLE[selo]) || "Todos os produtos"}${segment ? ` · ${segment}` : ""}`;
+  const title = params.busca ? `Resultados para “${params.busca}”` : `${(selo && SELO_TITLE[selo]) || "Todos os produtos"}${segment ? ` · ${segment}` : ""}`;
 
   const pageHref = (page: number) => {
     const query = new URLSearchParams(Object.entries(params).filter(([key, v]) => v && key !== "pagina") as [string, string][]);

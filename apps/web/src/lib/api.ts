@@ -1,5 +1,5 @@
 import { getAdminToken } from "@/lib/admin-session";
-import type { AdminStats, Audience, Brand, Campaign, Category, CustomerStat, DashFilters, Facets, Inventory, Order, Overview, StockMovement, Paginated, Product, ProductClass, Showcase, ShippingQuote, SiteSettings, User } from "@/types/product";
+import type { AdminStats, Audience, Brand, Campaign, Category, CustomerStat, DashFilters, Facets, Inventory, Order, Overview, Paginated, Product, ProductClass, ShippingQuote, Showcase, SiteSettings, StockMovement, Story, User } from "@/types/product";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3333/api";
 /** Origem da API (sem /api), usada para servir as fotos enviadas em /uploads. */
@@ -80,6 +80,8 @@ export const api = {
     for (const [key, value] of Object.entries(params)) if (value) query.set(key, value);
     return request<Facets>(`/products/facets?${query}`);
   },
+  /** Contagens do menu do topo de todas as seleções ("" = tudo, lancamento, promocao, destaque) numa chamada só. */
+  menuSegments: () => request<Record<string, Pick<Facets, "segments" | "total">>>("/products/menu-segments"),
   getProduct: (slug: string) => request<Product>(`/products/${encodeURIComponent(slug)}`),
   /** Com `selo`, faixa ou gênero, só as categorias que têm produtos naquela seleção (menu da loja). */
   listCategories(params: { selo?: string; ageGroup?: string; gender?: string } = {}) {
@@ -93,7 +95,7 @@ export const api = {
   listClasses: () => request<ProductClass[]>("/classes"),
   listAudiences: () => request<Audience[]>("/audiences"),
   listBrands: () => request<Brand[]>("/brands"),
-  home: () => request<{ campaigns: Campaign[]; showcases: Required<Showcase>[]; categories: Category[]; audiences: Audience[] }>("/home"),
+  home: () => request<{ campaigns: Campaign[]; showcases: Required<Showcase>[]; categories: Category[]; audiences: Audience[]; stories: Story[] }>("/home"),
   settings: () => request<SiteSettings>("/settings"),
 
   register: (data: { name: string; email: string; phone?: string; password: string }) =>
@@ -108,10 +110,10 @@ export const api = {
   myOrders: () => request<Order[]>("/orders/mine"),
 
   admin: {
-    list: <T>(resource: "products" | "categories" | "classes" | "audiences" | "brands" | "campaigns" | "showcases" | "orders") => request<T[]>(`/admin/${resource}`),
+    list: <T>(resource: "products" | "categories" | "classes" | "audiences" | "brands" | "campaigns" | "showcases" | "stories" | "orders") => request<T[]>(`/admin/${resource}`),
     get: <T>(resource: string, id: string) => request<T>(`/admin/${resource}/${id}`),
     /** Ativa/desativa direto da tabela. Inativo some da loja (e leva os produtos ligados, no caso de categoria, classe e marca). */
-    setActive: (resource: "products" | "categories" | "classes" | "brands", id: string, active: boolean) =>
+    setActive: (resource: "products" | "categories" | "classes" | "brands" | "stories", id: string, active: boolean) =>
       request<{ id: string; active: boolean }>(`/admin/${resource}/${id}/active`, { method: "PATCH", json: { active } }),
     stats: () => request<AdminStats>("/admin/stats"),
     overview: (from: string, to: string, filters: DashFilters = {}) =>
@@ -134,6 +136,12 @@ export const api = {
     setOrderNote: (id: string, internalNote: string) => request<Order>(`/admin/orders/${id}/note`, { method: "PATCH", json: { internalNote } }),
     setItemPicked: (orderId: string, itemId: string, picked: boolean) =>
       request<{ id: string; picked: boolean }>(`/admin/orders/${orderId}/items/${itemId}/picked`, { method: "PATCH", json: { picked } }),
+    /** Vídeo de story (MP4, WebM ou MOV, até 15 MB); devolve o endereço guardado. */
+    async uploadVideo(file: File) {
+      const form = new FormData();
+      form.append("file", file);
+      return request<{ url: string }>("/admin/uploads/video", { method: "POST", body: form });
+    },
     async upload(files: FileList | File[]) {
       const form = new FormData();
       for (const file of files) form.append("files", file);

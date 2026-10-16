@@ -2,12 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { api } from "@/lib/api";
-import type { Facets } from "@/types/product";
-
-type Data = Pick<Facets, "segments" | "total">;
-const cache = new Map<string, Data>();
-const NONE: Data = { segments: { adulto: { total: 0, feminino: 0, masculino: 0 }, infantil: { total: 0, feminino: 0, masculino: 0 } }, total: 0 };
+import { useSegments } from "./useSegments";
 
 interface Props {
   label: string;
@@ -18,37 +13,18 @@ interface Props {
 }
 
 /**
- * Item do menu principal que, ao clicar, abre a escolha do público: Feminino, Masculino e Infantil (com Menina e
- * Menino logo abaixo). Só lista o que tem produtos naquela seleção, com a quantidade; unissex conta nos dois
- * gêneros. "Ver tudo" leva à seleção inteira. Abre também ao passar o mouse.
+ * Item do menu principal que abre a escolha do público: Feminino, Masculino e Infantil (Menina e Menino só
+ * aparecem dentro da página de Infantil). Só lista o que tem produtos naquela seleção, com a quantidade; "Ver tudo" leva à seleção inteira.
+ * Abre ao passar o mouse ou ao clicar.
  */
 export function NavMenu({ label, url, className, current }: Props) {
-  const target = new URL(url, "http://loja");
-  const selo = target.searchParams.get("selo") ?? "";
   // `hovered` vem do mouse passando por cima; `pinned` do clique. O menu fica aberto se qualquer um dos dois valer.
   const [hovered, setHovered] = useState(false);
   const [pinned, setPinned] = useState(false);
   const open = hovered || pinned;
-  const [data, setData] = useState(cache.get(selo) ?? null);
+  const { entries, total, ready } = useSegments(url, open);
   const root = useRef<HTMLDivElement>(null);
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
-
-  // As opções vêm da API na primeira abertura de cada seleção e ficam em cache.
-  useEffect(() => {
-    if (!open || cache.has(selo)) return;
-    let cancelled = false;
-    api
-      .productFacets({ selo: selo || undefined })
-      .then((facets) => {
-        const value = { segments: facets.segments, total: facets.total };
-        cache.set(selo, value);
-        if (!cancelled) setData(value);
-      })
-      .catch(() => !cancelled && setData(NONE));
-    return () => {
-      cancelled = true;
-    };
-  }, [open, selo]);
 
   useEffect(() => {
     if (!open) return;
@@ -62,20 +38,6 @@ export function NavMenu({ label, url, className, current }: Props) {
     };
   }, [open]);
 
-  const href = (faixa: string, genero?: string) => {
-    const params = new URLSearchParams(target.search);
-    params.set("faixa", faixa);
-    if (genero) params.set("genero", genero);
-    return `/produtos?${params}`;
-  };
-  const { adulto, infantil } = (data ?? NONE).segments;
-  const entries = [
-    { key: "f", label: "Feminino", href: href("adulto", "feminino"), count: adulto.feminino },
-    { key: "m", label: "Masculino", href: href("adulto", "masculino"), count: adulto.masculino },
-    { key: "i", label: "Infantil", href: href("infantil"), count: infantil.total },
-    { key: "i-f", label: "Menina", href: href("infantil", "feminino"), count: infantil.feminino, sub: true },
-    { key: "i-m", label: "Menino", href: href("infantil", "masculino"), count: infantil.masculino, sub: true },
-  ].filter((e) => e.count > 0);
   function close() {
     clearTimeout(timer.current);
     setHovered(false);
@@ -105,23 +67,20 @@ export function NavMenu({ label, url, className, current }: Props) {
         </svg>
       </button>
       {open && (
-        <>
-          <span className="nav-scrim" aria-hidden="true" onClick={close} />
-          <div className="nav-menu" role="menu" aria-label={`${label}: escolha o público`}>
-            <div className="nav-menu-box">
-              <p className="nav-menu-title">{label} · escolha o público</p>
-              <Link href={url} role="menuitem" onClick={close}>
-                Ver tudo {data && data.total > 0 && <small>{data.total}</small>}
+        <div className="nav-menu" role="menu" aria-label={`${label}: escolha o público`}>
+          <div className="nav-menu-box">
+            <p className="nav-menu-title">{label} · escolha o público</p>
+            <Link href={url} role="menuitem" onClick={close}>
+              Ver tudo {total > 0 && <small>{total}</small>}
+            </Link>
+            {entries.map((e) => (
+              <Link key={e.key} href={e.href} role="menuitem" onClick={close}>
+                {e.label} <small>{e.count}</small>
               </Link>
-              {entries.map((e) => (
-                <Link key={e.key} href={e.href} role="menuitem" className={e.sub ? "nav-menu-sub" : undefined} onClick={close}>
-                  {e.label} <small>{e.count}</small>
-                </Link>
-              ))}
-              {!data && <span className="nav-menu-note">Carregando…</span>}
-            </div>
+            ))}
+            {!ready && <span className="nav-menu-note">Carregando…</span>}
           </div>
-        </>
+        </div>
       )}
     </div>
   );

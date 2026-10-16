@@ -237,6 +237,23 @@ model Campaign {
   @@map("campaigns")
 }
 
+/// Cartão vertical em movimento (GIF ou foto) na home, no estilo "stories"; leva a um produto ou link.
+model Story {
+  id        String   @id @default(uuid())
+  /// Legenda curta sobre a imagem (opcional).
+  title     String?
+  /// GIF animado (convertido em WebP animado pelo envio) ou foto.
+  mediaUrl  String
+  /// Para onde o cartão leva (ex.: /produtos/bota-couro-trail); vazio = não é clicável.
+  linkUrl   String?
+  sortOrder Int      @default(0)
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("stories")
+}
+
 /// Vitrines da home: seleção automática de produtos por selo.
 model Showcase {
   id            String       @id @default(uuid())

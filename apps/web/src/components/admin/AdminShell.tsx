@@ -17,6 +17,7 @@ export const ADMIN_MENU: { href: string; label: string; group?: string }[] = [
   { href: "/admin/marcas", label: "Marcas", group: "Catálogo" },
   { href: "/admin/publicos", label: "Públicos-alvo", group: "Catálogo" },
   { href: "/admin/campanhas", label: "Campanhas (banners)", group: "Vitrine da loja" },
+  { href: "/admin/stories", label: "Stories (GIFs)", group: "Vitrine da loja" },
   { href: "/admin/vitrines", label: "Vitrines de produtos", group: "Vitrine da loja" },
   { href: "/admin/conteudo", label: "Textos e menu", group: "Vitrine da loja" },
 ];

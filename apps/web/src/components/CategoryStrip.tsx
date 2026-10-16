@@ -1,40 +1,32 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import { api } from "@/lib/api";
-import type { Category } from "@/types/product";
-
-const cache = new Map<string, Category[]>();
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useCategories } from "./useCategories";
 
 /**
- * Segunda linha do menu: as categorias da seleção escolhida em cima (todos os produtos, lançamentos ou
- * promoções), mantendo a faixa e o gênero escolhidos. Só lista categorias que têm produtos naquela seleção, para
- * nenhum link levar a uma página vazia.
+ * Links das categorias na mesma linha do menu principal, mantendo a seleção escolhida (selo, faixa e gênero). Só
+ * lista categorias que têm produtos nela; "Ver tudo" fecha a lista. Quando não cabem, só esta parte rola (setas ‹ ›),
+ * para o menu principal e os seus menus suspensos continuarem fixos.
  */
-export function CategoryStrip({ selo, faixa, genero, active }: { selo: string; faixa: string; genero: string; active: string | null }) {
-  const key = `${selo}|${faixa}|${genero}`;
-  const [categories, setCategories] = useState<Category[] | null>(cache.get(key) ?? null);
+export function CategoryLinks({ selo, faixa, genero, active }: { selo: string; faixa: string; genero: string; active: string | null }) {
+  const categories = useCategories(selo, faixa, genero);
+  const track = useRef<HTMLDivElement>(null);
+  const [edge, setEdge] = useState({ start: true, end: true });
+
+  const measure = useCallback(() => {
+    const el = track.current;
+    if (el) setEdge({ start: el.scrollLeft <= 2, end: el.scrollLeft + el.clientWidth >= el.scrollWidth - 2 });
+  }, []);
 
   useEffect(() => {
-    let cancelled = false;
-    const cached = cache.get(key);
-    if (cached) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- troca de seleção já em cache
-      setCategories(cached);
-      return;
-    }
-    api
-      .listCategories({ selo, ageGroup: faixa, gender: genero })
-      .then((list) => {
-        cache.set(key, list);
-        if (!cancelled) setCategories(list);
-      })
-      .catch(() => !cancelled && setCategories([]));
-    return () => {
-      cancelled = true;
-    };
-  }, [key, selo, faixa, genero]);
+    const el = track.current;
+    if (!el) return;
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [measure, categories]);
 
   const href = (slug?: string) => {
     const query = new URLSearchParams();
@@ -45,16 +37,26 @@ export function CategoryStrip({ selo, faixa, genero, active }: { selo: string; f
     return query.size ? `/produtos?${query}` : "/produtos";
   };
 
+  if (!categories || categories.length === 0) return null;
+  const page = (direction: 1 | -1) => track.current?.scrollBy({ left: direction * track.current.clientWidth * 0.7 });
+
   return (
-    <nav className="catbar" aria-label="Categorias">
-      <div className="catbar-inner">
-        <Link href={href()} className={active === "" ? "is-active" : undefined} aria-current={active === "" ? "page" : undefined}>Ver tudo</Link>
-        {(categories ?? []).map((c) => (
-          <Link key={c.id} href={href(c.slug)} className={active === c.slug ? "is-active" : undefined} aria-current={active === c.slug ? "page" : undefined}>
-            {c.name}
+    <>
+      <span className="sh-sep" aria-hidden="true" />
+      <div className={`sh-cats${edge.start ? "" : " has-prev"}${edge.end ? "" : " has-next"}`}>
+        {!edge.start && <button type="button" className="sh-cats-btn sh-cats-prev" aria-label="Categorias anteriores" onClick={() => page(-1)}>‹</button>}
+        <div className="sh-cats-track" ref={track} onScroll={measure}>
+          {categories.map((c) => (
+            <Link key={c.id} href={href(c.slug)} className={active === c.slug ? "is-current" : undefined} aria-current={active === c.slug ? "page" : undefined}>
+              {c.name}
+            </Link>
+          ))}
+          <Link href={href()} className={active === "" ? "is-current" : undefined} aria-current={active === "" ? "page" : undefined}>
+            Ver tudo
           </Link>
-        ))}
+        </div>
+        {!edge.end && <button type="button" className="sh-cats-btn sh-cats-next" aria-label="Mais categorias" onClick={() => page(1)}>›</button>}
       </div>
-    </nav>
+    </>
   );
 }

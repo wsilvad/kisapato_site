@@ -34,10 +34,59 @@ export const defaultShipping: z.infer<typeof shippingSchema> = {
   ],
 };
 
+/**
+ * Textos iniciais das páginas institucionais (rascunho para a loja revisar no painel). Parágrafos separados por
+ * linha em branco; "## " abre um subtítulo e "- " um item de lista.
+ */
+export const defaultPages = [
+  {
+    slug: "quem-somos",
+    title: "Quem somos",
+    body: [
+      "A Ki Sapato é uma loja de calçados de Santo Antônio da Patrulha, no Rio Grande do Sul, com modelos femininos, masculinos e infantis das marcas que você confia.",
+      "No site você encontra os lançamentos e as promoções da loja, com o mesmo cuidado do atendimento no balcão: escolha o seu número, receba em casa ou retire na loja sem custo.",
+      "## Nosso jeito de atender",
+      "Um bom sapato acompanha cada passo do dia. Por isso ajudamos você a escolher o modelo e o número certos e facilitamos a troca quando algo não serve.",
+    ].join("\n\n"),
+  },
+  {
+    slug: "trocas-e-devolucoes",
+    title: "Trocas e devoluções",
+    body: [
+      "## Direito de arrependimento",
+      "Compras feitas pelo site podem ser devolvidas em até 7 dias corridos a partir do recebimento, como garante o Código de Defesa do Consumidor (art. 49). Devolvemos o valor pago, incluindo o frete.",
+      "## Trocas",
+      "A primeira troca é grátis. Para trocar de número ou de modelo em até 30 dias após o recebimento, o produto precisa estar sem sinais de uso, na embalagem original e com a etiqueta.",
+      "## Como pedir",
+      "- Fale com a gente pelos canais de atendimento informando o número do pedido.\n- Se preferir, faça a troca direto na loja física.",
+      "## Produto com defeito",
+      "Se o produto apresentar defeito de fabricação, entre em contato em até 90 dias do recebimento para análise e troca.",
+    ].join("\n\n"),
+  },
+  {
+    slug: "politicas-de-entrega",
+    title: "Políticas de entrega",
+    body: [
+      "Enviamos para todo o Brasil. O prazo de entrega começa a contar depois da confirmação do pagamento e aparece no carrinho assim que você informa o CEP.",
+      "Você também pode retirar o pedido na loja, sem custo: avisamos assim que ele estiver pronto.",
+    ].join("\n\n"),
+  },
+  { slug: "blog", title: "Blog", body: "" },
+  { slug: "avaliacoes", title: "Avaliação dos clientes", body: "" },
+];
+
+/** Meios de pagamento com logo no rodapé (o site tem o desenho de cada um). */
+export const PAYMENT_METHODS = ["visa", "mastercard", "elo", "hipercard", "amex", "diners", "boleto", "pix"] as const;
+const DEFAULT_PAYMENT_METHODS = ["visa", "mastercard", "elo", "hipercard", "boleto", "pix"] as const;
+
 export const siteSettingsSchema = z.object({
   shipping: shippingSchema.default(defaultShipping),
   /** Mensagens da barra preta no topo. */
   topbar: z.array(z.string().trim().min(1).max(120)).max(4).default([]),
+  /** Perfis da loja nas redes sociais (ícones do cabeçalho); vazio = ícone escondido. */
+  social: z
+    .object({ instagram: text(300), facebook: text(300), pinterest: text(300), tiktok: text(300) })
+    .default({ instagram: "", facebook: "", pinterest: "", tiktok: "" }),
   /** Links do menu principal; `highlight` pinta o item (ex.: Promoções). */
   nav: z.array(link.extend({ highlight: z.boolean().default(false) })).max(10).default([]),
   /** Faixa escura entre as vitrines da home. */
@@ -52,6 +101,11 @@ export const siteSettingsSchema = z.object({
     .default({ active: true, eyebrow: "", title: "", buttonLabel: "", buttonUrl: "" }),
   /** Faixa de benefícios no fim da home. */
   benefits: z.array(z.object({ title: z.string().trim().min(1).max(60), text: text(100) })).max(6).default([]),
+  /** Páginas institucionais (/institucional/<slug>): texto livre; página sem texto fica fora do ar e some do rodapé. */
+  pages: z
+    .array(z.object({ slug: z.string().trim().regex(/^[a-z0-9-]+$/).max(60), title: z.string().trim().min(1).max(80), body: text(20000) }))
+    .max(12)
+    .default(() => defaultPages),
   footer: z
     .object({
       columns: z.array(z.object({ title: z.string().trim().min(1).max(40), links: z.array(link).max(10) })).max(4).default([]),
@@ -60,9 +114,10 @@ export const siteSettingsSchema = z.object({
       phone: text(60),
       hours: text(120),
       cnpj: text(30),
-      payments: text(160),
+      /** Bandeiras e meios de pagamento exibidos no rodapé (logos), na ordem escolhida. */
+      paymentMethods: z.array(z.enum(PAYMENT_METHODS)).max(PAYMENT_METHODS.length).default(() => [...DEFAULT_PAYMENT_METHODS]),
     })
-    .default({ columns: [], storeTitle: "Nossas lojas", address: "", phone: "", hours: "", cnpj: "", payments: "" }),
+    .default({ columns: [], storeTitle: "Nossas lojas", address: "", phone: "", hours: "", cnpj: "", paymentMethods: [...DEFAULT_PAYMENT_METHODS] }),
 });
 
 export type SiteSettings = z.infer<typeof siteSettingsSchema>;
@@ -76,6 +131,7 @@ export const defaultSiteSettings: SiteSettings = {
     { label: "Lançamentos", url: "/produtos?selo=lancamento", highlight: false },
     { label: "Promoções", url: "/produtos?selo=promocao", highlight: true },
   ],
+  social: { instagram: "", facebook: "", pinterest: "", tiktok: "" },
   shipping: defaultShipping,
   promo: {
     active: true,
@@ -90,17 +146,25 @@ export const defaultSiteSettings: SiteSettings = {
     { title: "Até 6x sem juros", text: "Cartão, Pix ou boleto" },
     { title: "Troca fácil", text: "Primeira troca grátis" },
   ],
+  pages: defaultPages,
   footer: {
     columns: [
       {
-        title: "Comprar",
-        links: [{ label: "Todos os modelos", url: "/produtos" }],
-      },
-      {
         title: "Ajuda",
         links: [
-          { label: "Minha conta e pedidos", url: "/conta" },
-          { label: "Todos os modelos", url: "/produtos" },
+          { label: "Minha conta", url: "/conta" },
+          { label: "Meus pedidos", url: "/conta#pedidos" },
+          { label: "Meus favoritos", url: "/favoritos" },
+          { label: "Trocas e devoluções", url: "/institucional/trocas-e-devolucoes" },
+          { label: "Políticas de entrega", url: "/institucional/politicas-de-entrega" },
+        ],
+      },
+      {
+        title: "Institucional",
+        links: [
+          { label: "Quem somos", url: "/institucional/quem-somos" },
+          { label: "Blog", url: "/institucional/blog" },
+          { label: "Avaliação dos clientes", url: "/institucional/avaliacoes" },
         ],
       },
     ],
@@ -109,6 +173,6 @@ export const defaultSiteSettings: SiteSettings = {
     phone: "",
     hours: "",
     cnpj: "",
-    payments: "Visa · Mastercard · Elo · Hipercard · Boleto · Pix",
+    paymentMethods: [...DEFAULT_PAYMENT_METHODS],
   },
 };

@@ -13,8 +13,11 @@ case "$app" in
   api)
     cd "$root/apps/api"
     rm -f "$out/kisapato-api.zip"
+    # A API vai compilada (dist/), como a loja: um commit pelo painel nem sempre refaz o build na Discloud.
+    rm -rf dist
+    npm run build
     # uploads/ leva as fotos já cadastradas; src/generated é refeito no build (prisma generate).
-    zip -rq "$out/kisapato-api.zip" . -x "node_modules/*" "dist/*" ".env" ".env.*" "uploads-originais/*" "src/generated/*" "*.log" ".DS_Store" -x '!.env.example'
+    zip -rq "$out/kisapato-api.zip" . -x "node_modules/*" ".env" ".env.*" "uploads-originais/*" "src/generated/*" "*.log" ".DS_Store" -x '!.env.example'
     zip -q "$out/kisapato-api.zip" .env.example
     echo "Gerado: $out/kisapato-api.zip"
     ;;

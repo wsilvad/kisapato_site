@@ -1,44 +1,79 @@
 import Link from "next/link";
 import { Logo } from "@/components/Logo";
+import { PAYMENT_ICONS, PaymentIcon } from "@/components/PaymentIcons";
+import { SocialLinks } from "@/components/SocialLinks";
 import type { SiteSettings } from "@/types/product";
 
-export function Footer({ footer }: { footer: SiteSettings["footer"] }) {
-  const { columns, storeTitle, address, phone, hours, cnpj, payments } = footer;
-  const storeLines = [address, phone, hours].filter(Boolean);
+/** Link para uma página institucional ainda sem texto: fica fora do rodapé até a loja escrever a página. */
+function isEmptyPage(url: string, pages: SiteSettings["pages"]) {
+  const slug = url.match(/^\/institucional\/([^/?#]+)$/)?.[1];
+  return slug !== undefined && !pages.some((p) => p.slug === slug && p.body.trim());
+}
+
+/**
+ * Rodapé no estilo da Luz da Lua: logo no centro, os grupos de links (Ajuda, Institucional…) como menus que abrem
+ * só ao clicar e, embaixo, dados da loja, redes sociais e formas de pagamento.
+ */
+export function Footer({ footer, social, pages }: { footer: SiteSettings["footer"]; social: SiteSettings["social"]; pages: SiteSettings["pages"] }) {
+  const { columns, address, phone, hours, cnpj } = footer;
+  const hasSocial = Object.values(social).some(Boolean);
+  const paymentList = (footer.paymentMethods ?? []).filter((m) => PAYMENT_ICONS[m]);
+  const groups = columns.map((c) => ({ ...c, links: c.links.filter((l) => !isEmptyPage(l.url, pages)) })).filter((c) => c.links.length > 0);
 
   return (
     <footer className="footer">
-      <div className="footer-grid">
-        <div className="footer-col">
-          <Logo className="footer-logo" />
-        </div>
+      <Link href="/" className="footer-brand" aria-label="Ki Sapato — página inicial">
+        <Logo onLight className="footer-logo" />
+      </Link>
 
-        {columns.map((column) => (
-          <div key={column.title} className="footer-col">
-            <h2 className="footer-title">{column.title}</h2>
-            {column.links.map((link) => (
-              <Link key={`${link.label}-${link.url}`} href={link.url}>
-                {link.label}
-              </Link>
-            ))}
-          </div>
+      <div className="footer-menus">
+        {groups.map((group) => (
+          <details key={group.title} className="footer-acc">
+            <summary>
+              {group.title}
+              <svg width="12" height="8" viewBox="0 0 12 8" fill="none" stroke="currentColor" strokeWidth="1.4" aria-hidden="true"><path d="M1 1.500l5 5 5-5" /></svg>
+            </summary>
+            <ul>
+              {group.links.map((link) => (
+                <li key={`${link.label}-${link.url}`}>
+                  <Link href={link.url}>{link.label}</Link>
+                </li>
+              ))}
+            </ul>
+          </details>
         ))}
-
-        {storeLines.length > 0 && (
-          <div className="footer-col">
-            <h2 className="footer-title">{storeTitle}</h2>
-            {storeLines.map((line) => (
-              <span key={line} className="footer-muted">
-                {line}
-              </span>
-            ))}
-          </div>
-        )}
       </div>
 
       <div className="footer-bottom">
-        <span>© Ki Sapato{cnpj ? ` · CNPJ ${cnpj}` : ""}</span>
-        {payments && <span>{payments}</span>}
+        <p className="footer-legal">
+          © {new Date().getFullYear()} Todos os direitos reservados. Ki Sapato
+          {address && <> / {address}</>}
+          {cnpj && <> / CNPJ {cnpj}</>}
+          {(phone || hours) && (
+            <>
+              <br />
+              {[phone, hours].filter(Boolean).join(" · ")}
+            </>
+          )}
+        </p>
+        {hasSocial && (
+          <div className="footer-block">
+            <h2>Redes sociais</h2>
+            <SocialLinks social={social} className="footer-social" />
+          </div>
+        )}
+        {paymentList.length > 0 && (
+          <div className="footer-block">
+            <h2>Formas de pagamento</h2>
+            <ul className="footer-payments">
+              {paymentList.map((m) => (
+                <li key={m}>
+                  <PaymentIcon method={m} />
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </div>
     </footer>
   );

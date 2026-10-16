@@ -26,6 +26,13 @@ export const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
     return;
   }
 
+  // multer (envio de arquivos): arquivo grande demais, campo inesperado…
+  if (err?.name === "MulterError") {
+    const tooBig = err.code === "LIMIT_FILE_SIZE";
+    res.status(tooBig ? 413 : 400).json({ error: tooBig ? "Arquivo grande demais: o limite é 15 MB (vídeo, GIF ou foto). Reduza o tamanho e tente de novo." : "Não foi possível receber o arquivo." });
+    return;
+  }
+
   if (err instanceof AppError) {
     res.status(err.statusCode).json({ error: err.message });
     return;
