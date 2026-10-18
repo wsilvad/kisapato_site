@@ -41,15 +41,11 @@ export function Footer({ footer, social, pages }: { footer: SiteSettings["footer
 
       <div className="footer-bottom">
         <p className="footer-legal">
-          © {new Date().getFullYear()} Todos os direitos reservados. Ki Sapato
-          {address && <> / {address}</>}
-          {cnpj && <> / CNPJ {cnpj}</>}
-          {(phone || hours) && (
-            <>
-              <br />
-              {[phone, hours].filter(Boolean).join(" · ")}
-            </>
-          )}
+          {/* cada informação numa linha própria: nenhuma (como a cidade) se parte no meio */}
+          <span className="footer-line">© {new Date().getFullYear()} Todos os direitos reservados. Ki Sapato</span>
+          {address && <span className="footer-line">{address}</span>}
+          {cnpj && <span className="footer-line">CNPJ {cnpj}</span>}
+          {(phone || hours) && <span className="footer-line">{[phone, hours].filter(Boolean).join(" · ")}</span>}
         </p>
         {hasSocial && (
           <div className="footer-block">

@@ -8,7 +8,7 @@ import type { Audience, Brand, Category, Product, ProductClass } from "@/types/p
 const OTHER = "__outro__";
 
 const PAGES = [
-  ["/institucional/quem-somos", "Quem somos"],
+  ["/institucional/quem-somos", "Sobre a Ki Sapato"],
   ["/institucional/trocas-e-devolucoes", "Trocas e devoluções"],
   ["/institucional/politicas-de-entrega", "Políticas de entrega"],
 ] as const;

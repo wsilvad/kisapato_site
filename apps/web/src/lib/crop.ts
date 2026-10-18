@@ -21,8 +21,9 @@ export const cropStyle = (c: Crop): CSSProperties => ({
 });
 
 /** Na loja o recorte muda entre computador e celular; variáveis CSS deixam o @media escolher qual usar. */
-export const cropVars = (campaign?: Partial<Campaign>) => {
-  const d = desktopCrop(campaign);
-  const m = mobileCrop(campaign);
-  return { "--dx": `${d.x}%`, "--dy": `${d.y}%`, "--dz": d.zoom, "--mx": `${m.x}%`, "--my": `${m.y}%`, "--mz": m.zoom } as CSSProperties;
-};
+export const cropVarsOf = (d: Crop, m: Crop) =>
+  ({ "--dx": `${d.x}%`, "--dy": `${d.y}%`, "--dz": d.zoom, "--mx": `${m.x}%`, "--my": `${m.y}%`, "--mz": m.zoom }) as CSSProperties;
+
+export const cropVars = (campaign?: Partial<Campaign>) => cropVarsOf(desktopCrop(campaign), mobileCrop(campaign));
+
+export const sameCrop = (a: Crop, b: Crop) => a.x === b.x && a.y === b.y && a.zoom === b.zoom;

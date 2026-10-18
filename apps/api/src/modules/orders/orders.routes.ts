@@ -38,7 +38,7 @@ ordersRouter.post("/", async (req, res) => {
 
   // CPF é obrigatório para a nota fiscal
   const profile = await prisma.profile.findUniqueOrThrow({ where: { id: profileId }, select: { cpf: true } });
-  if (!profile.cpf) throw new AppError("Cadastre seu CPF em Minha conta para finalizar a compra: ele vai na nota fiscal.", 409, "CPF_REQUIRED");
+  if (!profile.cpf) throw new AppError("Cadastre seu CPF em Minha conta para finalizar a compra.", 409, "CPF_REQUIRED");
 
   let shippingAddress: z.infer<typeof shippingAddressBody>;
   if (addressId) {

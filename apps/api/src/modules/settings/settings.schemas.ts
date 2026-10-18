@@ -41,12 +41,25 @@ export const defaultShipping: z.infer<typeof shippingSchema> = {
 export const defaultPages = [
   {
     slug: "quem-somos",
-    title: "Quem somos",
+    title: "Sobre a Ki Sapato",
+    // Formato editorial (ver web/src/lib/page-body.ts): foto no topo, frase de destaque, seções "## Rótulo | Título",
+    // foto na lateral do texto (lado=…) e grupo de fotos lado a lado (linhas de foto seguidas). As fotos são provisórias:
+    // a loja troca pelas suas no painel (Textos e menu → Páginas → Fotos da página).
     body: [
+      "![Moda para todos os passos](/uploads/ebf5fdaa-ccbc-4bd1-8688-a989c9393230.jpg)",
+      "Há mais de 50 anos, construindo uma história de tradição, confiança e qualidade.",
+      "## A loja | Nossa história",
+      "![Vitrine da Ki Sapato](/uploads/044b5cb7-5abb-43f3-b550-407aa1cfd5f8.jpg){r=4:5 lado=esquerda}",
       "A Ki Sapato é uma loja de calçados de Santo Antônio da Patrulha, no Rio Grande do Sul, com modelos femininos, masculinos e infantis das marcas que você confia.",
-      "No site você encontra os lançamentos e as promoções da loja, com o mesmo cuidado do atendimento no balcão: escolha o seu número, receba em casa ou retire na loja sem custo.",
-      "## Nosso jeito de atender",
-      "Um bom sapato acompanha cada passo do dia. Por isso ajudamos você a escolher o modelo e o número certos e facilitamos a troca quando algo não serve.",
+      "## Santo Antônio da Patrulha | Nossa loja",
+      [
+        "![Foto da loja 1](/uploads/088d9036-32dd-4f5a-adf9-f6be30ed2c86.jpg)",
+        "![Foto da loja 2](/uploads/7661c718-81b0-44b9-8268-d0b492381fb1.jpg)",
+        "![Foto da loja 3](/uploads/e5098137-09d3-4bbe-a633-90467db477d4.jpg)",
+      ].join("\n"),
+      "## Compromisso | Produtos originais, das melhores marcas",
+      "![Calçados selecionados](/uploads/6a1b3df4-6c58-448c-b0d4-6551866f4c1e.jpg){r=4:5 lado=direita}",
+      "Ao longo de nossa trajetória, cultivamos o compromisso de oferecer produtos originais, das melhores marcas, cuidadosamente selecionados com base nas tendências da moda e em um olhar atento a cada detalhe.",
     ].join("\n\n"),
   },
   {
@@ -153,7 +166,7 @@ export const defaultSiteSettings: SiteSettings = {
       {
         title: "Institucional",
         links: [
-          { label: "Quem somos", url: "/institucional/quem-somos" },
+          { label: "Sobre a Ki Sapato", url: "/institucional/quem-somos" },
           { label: "Blog", url: "/institucional/blog" },
           { label: "Avaliação dos clientes", url: "/institucional/avaliacoes" },
         ],
@@ -163,7 +176,7 @@ export const defaultSiteSettings: SiteSettings = {
     address: "Santo Antônio da Patrulha, RS",
     phone: "",
     hours: "",
-    cnpj: "",
+    cnpj: "51.326.310/0001-31",
     paymentMethods: [...DEFAULT_PAYMENT_METHODS],
   },
 };

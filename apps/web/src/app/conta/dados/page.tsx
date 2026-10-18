@@ -83,7 +83,7 @@ export default function DadosPage() {
       <h2>Meus dados</h2>
       <form className="form narrow-form" onSubmit={save} noValidate>
         <label>Nome completo<input value={name} onChange={(e) => setName(e.target.value)} required autoComplete="name" /></label>
-        <label>CPF (vai na nota fiscal)<input value={cpf} onChange={(e) => setCpf(formatCpf(e.target.value))} required inputMode="numeric" autoComplete="off" placeholder="000.000.000-00" /></label>
+        <label>CPF<input value={cpf} onChange={(e) => setCpf(formatCpf(e.target.value))} required inputMode="numeric" autoComplete="off" placeholder="000.000.000-00" /></label>
         <label>
           E-mail
           <input value={user.email} readOnly aria-readonly="true" />

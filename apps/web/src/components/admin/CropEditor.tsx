@@ -10,7 +10,13 @@ export interface CropFrame {
   /** Proporção real da área da foto nessa tela (largura × altura em px). */
   width: number;
   height: number;
+  /** Altura que acompanha a foto até esse limite (foto sem proporção fixa): a altura real é a menor das duas. */
+  maxHeight?: number;
 }
+
+/** Tamanho real da área nessa tela, já com a altura que acompanha a foto (quando houver limite). */
+const frameSize = (frame: CropFrame, ratio: number): CropFrame =>
+  frame.maxHeight ? { ...frame, height: Math.round(Math.min(frame.maxHeight, frame.width / ratio)) } : frame;
 
 interface Props {
   title: string;
@@ -73,7 +79,7 @@ function CropDialog({ title, hint, url, initial, frames, onCancel, onApply }: { 
   const [frameIndex, setFrameIndex] = useState(Math.min(1, frames.length - 1));
   const [ratio, setRatio] = useState(1.5);
   const surface = useRef<HTMLDivElement>(null);
-  const frame = frames[frameIndex]!;
+  const frame = frameSize(frames[frameIndex]!, ratio);
   const win = visibleWindow(ratio, frame, draft);
 
   // Esc fecha; a página atrás não rola enquanto o pop-up está aberto.
@@ -123,7 +129,7 @@ function CropDialog({ title, hint, url, initial, frames, onCancel, onApply }: { 
               <img src={url} alt="" draggable={false} onLoad={(e) => setRatio(e.currentTarget.naturalWidth / e.currentTarget.naturalHeight)} />
               {frames.map((f, i) => {
                 if (i === frameIndex) return null;
-                const w = visibleWindow(ratio, f, draft);
+                const w = visibleWindow(ratio, frameSize(f, ratio), draft);
                 return <span key={f.label} className="crop-ghost" style={{ left: `${w.left * 100}%`, top: `${w.top * 100}%`, width: `${w.w * 100}%`, height: `${w.h * 100}%` }} title={f.label} />;
               })}
               <span className="crop-window" style={{ left: `${win.left * 100}%`, top: `${win.top * 100}%`, width: `${win.w * 100}%`, height: `${win.h * 100}%` }}>

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Notice, PageHead, Switch, useAdminList } from "@/components/admin/kit";
+import { PagePhotos } from "@/components/admin/PagePhotos";
 import { PAYMENT_ICONS, PaymentIcon } from "@/components/PaymentIcons";
 import { api } from "@/lib/api";
 import { audienceHref } from "@/lib/segment";
@@ -259,6 +260,11 @@ export default function ContentAdmin() {
               &quot;## &quot; para um subtítulo e com &quot;- &quot; para um item de lista. Página sem texto fica fora do ar e some do rodapé.
               Políticas de entrega mostra também a tabela da aba Frete.
             </p>
+            <p className="field-hint">
+              Fotos: use o quadro &quot;Fotos da página&quot; abaixo de cada texto para enviar, trocar, mover e ajustar o tamanho; ele grava
+              linhas como ![descrição](/uploads/arquivo.jpg) no texto. Sobre a Ki Sapato: se a página começar com uma foto, ela vira o topo;
+              o 1º parágrafo vira a frase de destaque e cada &quot;## Rótulo | Título&quot; abre uma seção com um atalho no menu da página.
+            </p>
             {(s.pages ?? []).map((page, i) => (
               <fieldset key={page.slug}>
                 <legend>
@@ -271,6 +277,7 @@ export default function ContentAdmin() {
                 </legend>
                 <label className="span-2">Título<input value={page.title} onChange={(e) => update({ pages: patchList(s.pages, i, { title: e.target.value }) })} /></label>
                 <label className="span-2">Texto<textarea rows={10} value={page.body} onChange={(e) => update({ pages: patchList(s.pages, i, { body: e.target.value }) })} /></label>
+                <PagePhotos body={page.body} heroHint={page.slug === "quem-somos"} onChange={(body) => update({ pages: patchList(s.pages, i, { body }) })} />
               </fieldset>
             ))}
           </>

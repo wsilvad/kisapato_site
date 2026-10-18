@@ -66,9 +66,10 @@ export interface PasswordCheck {
 export function passwordChecks(password: string): PasswordCheck[] {
   return [
     { label: "Ao menos 8 caracteres", ok: password.length >= 8 },
-    { label: "Uma letra", ok: /[A-Za-zÀ-ÿ]/.test(password) },
+    { label: "Uma letra maiúscula", ok: /\p{Lu}/u.test(password) },
+    { label: "Uma letra minúscula", ok: /\p{Ll}/u.test(password) },
     { label: "Um número", ok: /\d/.test(password) },
-    { label: "Um caractere especial (ex.: ! @ # $ %)", ok: /[^A-Za-zÀ-ÿ\d\s]/.test(password) },
+    { label: "Um caractere especial (ex.: ! @ # $ %)", ok: /[^\p{L}\d\s]/u.test(password) },
   ];
 }
 

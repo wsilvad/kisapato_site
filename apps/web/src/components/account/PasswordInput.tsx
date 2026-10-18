@@ -12,6 +12,8 @@ export function PasswordInput({
   autoComplete,
   showChecks = false,
   autoFocus,
+  onBlur,
+  error,
 }: {
   label: string;
   value: string;
@@ -20,6 +22,9 @@ export function PasswordInput({
   autoComplete: "current-password" | "new-password";
   showChecks?: boolean;
   autoFocus?: boolean;
+  onBlur?: () => void;
+  /** Motivo de o campo estar inválido (mostrado embaixo dele). */
+  error?: string;
 }) {
   const id = useId();
   const [visible, setVisible] = useState(false);
@@ -35,6 +40,8 @@ export function PasswordInput({
           type={visible ? "text" : "password"}
           value={value}
           onChange={(e) => onChange(e.target.value)}
+          onBlur={onBlur}
+          aria-invalid={Boolean(error)}
           autoComplete={autoComplete}
           autoFocus={autoFocus}
           required
@@ -44,6 +51,7 @@ export function PasswordInput({
           {visible ? "Ocultar" : "Mostrar"}
         </button>
       </span>
+      {error && <small className="field-error" role="alert">{error}</small>}
       {showChecks && (
         <ul className="pw-checks" id={`${id}-rules`}>
           {checks.map((c) => (

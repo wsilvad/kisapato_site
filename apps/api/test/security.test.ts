@@ -29,13 +29,15 @@ test("CPF: aceita válidos (com ou sem máscara) e recusa inválidos", () => {
   assert.equal(onlyDigits("529.982.247-25"), "52998224725");
 });
 
-test("Senha: exige 8+ caracteres com letra, número e caractere especial", () => {
+test("Senha: exige 8+ caracteres com maiúscula, minúscula, número e caractere especial", () => {
   assert.deepEqual(passwordIssues("Abcdef1!"), []);
-  assert.deepEqual(passwordIssues("senha#forte2026"), []);
+  assert.deepEqual(passwordIssues("Senha#forte2026"), []);
+  assert.ok(passwordIssues("senha#forte2026").some((m) => m.includes("maiúscula")));
+  assert.ok(passwordIssues("SENHA#FORTE2026").some((m) => m.includes("minúscula")));
   assert.ok(passwordIssues("abc1!").some((m) => m.includes("8 caracteres")));
   assert.ok(passwordIssues("abcdefgh1").some((m) => m.includes("especial")));
   assert.ok(passwordIssues("abcdefgh!").some((m) => m.includes("número")));
-  assert.ok(passwordIssues("12345678!").some((m) => m.includes("letra")));
+  assert.ok(passwordIssues("12345678!").some((m) => m.includes("maiúscula")) && passwordIssues("12345678!").some((m) => m.includes("minúscula")));
   assert.ok(passwordIssues("        ").length >= 3); // só espaços não conta
   assert.ok(passwordIssues("a1!".repeat(30)).some((m) => m.includes("72"))); // limite do bcrypt
   assert.deepEqual(passwordIssues("Pássaro1!"), []); // letras acentuadas valem como letra

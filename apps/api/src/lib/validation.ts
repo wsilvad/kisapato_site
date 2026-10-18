@@ -37,13 +37,14 @@ export function maskPhone(normalized: string): string {
   return `(${national.slice(0, 2)}) ${"*".repeat(national.length - 6)}-${national.slice(-4)}`;
 }
 
-/** Regras da senha: 8+ caracteres com letra, número e caractere especial (o bcrypt só considera os primeiros 72). */
+/** Regras da senha: 8+ caracteres com letra maiúscula, letra minúscula, número e caractere especial (o bcrypt só considera os primeiros 72). */
 export function passwordIssues(password: string): string[] {
   const issues: string[] = [];
   if (password.length < 8) issues.push("ao menos 8 caracteres");
-  if (!/[A-Za-zÀ-ÿ]/.test(password)) issues.push("uma letra");
+  if (!/\p{Lu}/u.test(password)) issues.push("uma letra maiúscula");
+  if (!/\p{Ll}/u.test(password)) issues.push("uma letra minúscula");
   if (!/\d/.test(password)) issues.push("um número");
-  if (!/[^A-Za-zÀ-ÿ\d\s]/.test(password)) issues.push("um caractere especial (ex.: ! @ # $ %)");
+  if (!/[^\p{L}\d\s]/u.test(password)) issues.push("um caractere especial (ex.: ! @ # $ %)");
   if (password.length > 72) issues.push("no máximo 72 caracteres");
   return issues;
 }

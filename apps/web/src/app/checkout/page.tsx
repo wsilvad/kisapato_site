@@ -83,7 +83,7 @@ export default function CheckoutPage() {
     } catch (err) {
       if (err instanceof ApiError && err.code === "CPF_REQUIRED") {
         updateUser({ ...user!, cpf: null }); // a conta não tem CPF: mostra o campo abaixo
-        setError("Informe o CPF da nota fiscal para continuar.");
+        setError("Informe o seu CPF para continuar.");
       } else {
         setError(err instanceof Error ? err.message : "Não foi possível concluir o pedido");
       }
@@ -112,7 +112,6 @@ export default function CheckoutPage() {
 
       {!user.cpf && (
         <form className="form" onSubmit={saveCpf} noValidate>
-          <h2 className="checkout-step">CPF para a nota fiscal</h2>
           <label>CPF<input value={cpf} onChange={(e) => setCpf(formatCpf(e.target.value))} required inputMode="numeric" autoComplete="off" placeholder="000.000.000-00" /></label>
           <button className="btn btn-outline btn-sm" disabled={cpfBusy}>{cpfBusy ? "Salvando…" : "Salvar CPF"}</button>
         </form>

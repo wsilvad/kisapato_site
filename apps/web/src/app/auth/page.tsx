@@ -33,6 +33,9 @@ function AuthForm() {
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
+  // campos que o cliente já tocou: só eles mostram o erro (os outros aparecem ao tentar enviar)
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
+  const touch = (key: string) => setTouched((t) => (t[key] ? t : { ...t, [key]: true }));
 
   // segunda etapa do login (conta com verificação em duas etapas)
   const [challenge, setChallenge] = useState<string | null>(null);
@@ -60,6 +63,20 @@ function AuthForm() {
 
   const registrationDown = caps?.registration === false;
 
+  // Todos os campos do cadastro são obrigatórios: sem todos preenchidos e válidos, o botão fica bloqueado.
+  const emailValid = /^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/.test(email.trim());
+  const errors = {
+    name: !name.trim() ? "Informe seu nome completo." : !isFullName(name) ? "Informe nome e sobrenome." : "",
+    cpf: !cpf ? "Informe seu CPF." : !isValidCpf(cpf) ? "CPF inválido. Confira os números." : "",
+    email: !email.trim() ? "Informe seu e-mail." : !emailValid ? "E-mail inválido." : "",
+    phone: !phone ? "Informe seu celular." : !isValidPhone(phone) ? "Celular inválido. Use DDD + número." : "",
+    password: !password ? "Crie uma senha." : !isStrongPassword(password) ? "A senha ainda não cumpre todas as regras abaixo." : "",
+    confirm: !confirm ? "Confirme a senha." : confirm !== password ? "As senhas não são iguais." : "",
+  };
+  const registerReady = Object.values(errors).every((e) => !e);
+  const ready = mode === "register" ? registerReady : emailValid && password.length > 0;
+  const shown = (key: keyof typeof errors) => (mode === "register" && touched[key] ? errors[key] : "");
+
   function finish(result: AuthResult) {
     signIn(result);
     router.push(next);
@@ -79,12 +96,10 @@ function AuthForm() {
     e.preventDefault();
     setError("");
 
-    if (mode === "register") {
-      if (!isFullName(name)) return setError("Informe seu nome completo (nome e sobrenome).");
-      if (!isValidCpf(cpf)) return setError("CPF inválido. Confira os números.");
-      if (!isValidPhone(phone)) return setError("Informe um celular válido com DDD, ex.: (51) 99999-8888.");
-      if (!isStrongPassword(password)) return setError("A senha ainda não cumpre todas as regras abaixo do campo.");
-      if (password !== confirm) return setError("As senhas não são iguais.");
+    if (!ready) {
+      // não segue sem todos os campos: mostra o que falta em cada um
+      setTouched({ name: true, cpf: true, email: true, phone: true, password: true, confirm: true });
+      return setError(mode === "register" ? "Preencha todos os campos corretamente para continuar." : "Informe o e-mail e a senha.");
     }
 
     setBusy(true);
@@ -231,21 +246,35 @@ function AuthForm() {
   return (
     <div className="page narrow">
       <h1 className="page-title">{mode === "login" ? "Entrar" : "Criar conta"}</h1>
+      {mode === "register" && <p className="muted">Todos os campos são obrigatórios.</p>}
       {mode === "register" && registrationDown && (
         <p className="form-error" role="alert">O cadastro está temporariamente indisponível: não conseguimos enviar o código de confirmação. Tente novamente mais tarde.</p>
       )}
       <form className="form" onSubmit={onSubmit} noValidate>
         {mode === "register" && (
           <>
-            <label>Nome completo<input value={name} onChange={(e) => setName(e.target.value)} required minLength={5} autoComplete="name" /></label>
-            <label>CPF (para a nota fiscal)<input value={cpf} onChange={(e) => setCpf(formatCpf(e.target.value))} required inputMode="numeric" autoComplete="off" placeholder="000.000.000-00" /></label>
+            <label>
+              Nome completo
+              <input value={name} onChange={(e) => setName(e.target.value)} onBlur={() => touch("name")} required aria-invalid={Boolean(shown("name"))} autoComplete="name" />
+              {shown("name") && <small className="field-error" role="alert">{shown("name")}</small>}
+            </label>
+            <label>
+              CPF
+              <input value={cpf} onChange={(e) => setCpf(formatCpf(e.target.value))} onBlur={() => touch("cpf")} required aria-invalid={Boolean(shown("cpf"))} inputMode="numeric" autoComplete="off" placeholder="000.000.000-00" />
+              {shown("cpf") && <small className="field-error" role="alert">{shown("cpf")}</small>}
+            </label>
           </>
         )}
-        <label>E-mail<input value={email} onChange={(e) => setEmail(e.target.value)} type="email" required autoComplete="email" /></label>
+        <label>
+          E-mail
+          <input value={email} onChange={(e) => setEmail(e.target.value)} onBlur={() => touch("email")} type="email" required aria-invalid={Boolean(shown("email"))} autoComplete="email" />
+          {shown("email") && <small className="field-error" role="alert">{shown("email")}</small>}
+        </label>
         {mode === "register" && (
           <label>
             Celular
-            <input value={phone} onChange={(e) => setPhone(formatPhone(e.target.value))} required inputMode="tel" autoComplete="tel" placeholder="(51) 99999-8888" />
+            <input value={phone} onChange={(e) => setPhone(formatPhone(e.target.value))} onBlur={() => touch("phone")} required aria-invalid={Boolean(shown("phone"))} inputMode="tel" autoComplete="tel" placeholder="(51) 99999-8888" />
+            {shown("phone") && <small className="field-error" role="alert">{shown("phone")}</small>}
             <small className="field-hint">
               {caps?.phoneVerification === false
                 ? "Vamos enviar um código para o seu e-mail para confirmar o cadastro. O celular será usado para contato sobre os pedidos."
@@ -253,15 +282,16 @@ function AuthForm() {
             </small>
           </label>
         )}
-        <PasswordInput label="Senha" value={password} onChange={setPassword} autoComplete={mode === "login" ? "current-password" : "new-password"} showChecks={mode === "register"} />
-        {mode === "register" && <PasswordInput label="Confirmar senha" value={confirm} onChange={setConfirm} autoComplete="new-password" />}
+        <PasswordInput label="Senha" value={password} onChange={setPassword} onBlur={() => touch("password")} error={shown("password")} autoComplete={mode === "login" ? "current-password" : "new-password"} showChecks={mode === "register"} />
+        {mode === "register" && <PasswordInput label="Confirmar senha" value={confirm} onChange={setConfirm} onBlur={() => touch("confirm")} error={shown("confirm")} autoComplete="new-password" />}
         {error && <p className="form-error" role="alert">{error}</p>}
-        <button className="btn btn-solid" disabled={busy || (mode === "register" && registrationDown)}>
+        <button className="btn btn-solid" disabled={busy || !ready || (mode === "register" && registrationDown)}>
           {busy ? "Aguarde…" : mode === "login" ? "Entrar" : caps?.phoneVerification === false ? "Cadastrar e enviar código" : "Cadastrar e enviar códigos"}
         </button>
+        {mode === "register" && !registerReady && !busy && <small className="field-hint">Preencha todos os campos corretamente para continuar.</small>}
       </form>
       {mode === "login" && <p><Link href="/auth/recuperar" className="link-btn">Esqueci minha senha</Link></p>}
-      <button type="button" className="link-btn" onClick={() => { setMode(mode === "login" ? "register" : "login"); setError(""); }}>
+      <button type="button" className="link-btn" onClick={() => { setMode(mode === "login" ? "register" : "login"); setError(""); setTouched({}); }}>
         {mode === "login" ? "Não tem conta? Cadastre-se" : "Já tenho conta"}
       </button>
     </div>
