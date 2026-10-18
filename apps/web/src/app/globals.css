@@ -1690,3 +1690,67 @@ a.btn-small { display: inline-flex; align-items: center; text-decoration: none; 
 .pay-option.is-on { border-color: var(--ink); background: var(--surface); }
 .pay-option span { color: var(--ink); font-size: 13px; }
 .pay-option input { margin: 0; }
+
+/* ---------- conta do cliente: dados, endereços, segurança, cartões ---------- */
+
+.account-who { margin: 8px 0 0; color: var(--muted); }
+.account-nav { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 24px; margin: 24px 0 8px; border-bottom: 1px solid var(--line); }
+.account-nav a { padding: 8px 0; border-bottom: 2px solid transparent; color: var(--muted); font-size: 13px; letter-spacing: 0.12em; text-decoration: none; text-transform: uppercase; }
+.account-nav a:hover { color: var(--ink); }
+.account-nav a.is-active { border-bottom-color: var(--ink); color: var(--ink); }
+.account-nav .link-btn { margin-left: auto; }
+.account h2 { margin: 28px 0 12px; font-size: 30px; }
+.account h3 { margin: 32px 0 8px; font-family: var(--font-sans); font-size: 16px; font-weight: 600; }
+.muted { color: var(--muted); font-size: 14px; line-height: 1.5; }
+.narrow-form { max-width: 480px; }
+.field-hint { color: var(--muted); font-size: 12px; }
+.form .check-row { flex-direction: row; align-items: center; gap: 8px; }
+.form .check-row input, .recovery-box .check-row input { width: 18px; height: 18px; }
+.recovery-box .check-row { display: flex; align-items: center; gap: 8px; font-size: 14px; }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.form-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.pw-field { display: flex; flex-direction: column; gap: 6px; font-size: 14px; }
+.pw-input { display: flex; align-items: center; gap: 12px; }
+.pw-input input { flex: 1; min-width: 0; height: 44px; padding: 0 12px; border: 1px solid var(--line); background: var(--paper); font: inherit; }
+.pw-checks { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; color: var(--muted); font-size: 13px; }
+.pw-checks li.is-ok { color: #1b6e3a; }
+.form .code-input, .code-input { font-size: 20px; letter-spacing: 0.3em; text-align: center; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.offer-banner { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; margin: 20px 0; padding: 20px; border: 1px solid var(--ink); background: var(--surface); }
+.offer-banner p { margin: 4px 0 0; color: var(--body-2); font-size: 14px; }
+.offer-actions { display: flex; align-items: center; gap: 16px; }
+.address-list { display: grid; gap: 12px; margin: 16px 0; padding: 0; list-style: none; }
+.address-card { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; padding: 16px; border: 1px solid var(--line); }
+.address-card.is-default, .address-card.is-selected { border-color: var(--ink); }
+.address-card p { margin: 6px 0 0; color: var(--body-2); font-size: 14px; line-height: 1.5; }
+.address-actions { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 4px 16px; }
+.address-pick { display: flex; align-items: flex-start; gap: 12px; font-size: 14px; line-height: 1.5; cursor: pointer; }
+.address-pick input { margin-top: 4px; }
+.tag-default { margin-left: 8px; padding: 2px 8px; background: var(--ink); color: var(--paper); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; }
+.checkout-step { margin: 28px 0 8px; font-size: 26px; }
+.recovery-box { display: grid; gap: 12px; margin: 16px 0; padding: 20px; border: 1px solid var(--ink); }
+.recovery-box p { margin: 0; font-size: 14px; }
+.recovery-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 0; padding: 0; list-style: none; }
+.recovery-grid code, .secret-key { font-family: ui-monospace, Menlo, monospace; font-size: 15px; letter-spacing: 0.08em; }
+.steps { padding-left: 20px; font-size: 14px; line-height: 1.6; }
+.qr { max-width: 100%; height: auto; padding: 6px; border: 1px solid var(--line); background: #fff; }
+.phone-verify { display: grid; gap: 12px; }
+@media (max-width: 560px) {
+  .form-row { grid-template-columns: 1fr; }
+  .account-nav .link-btn { margin-left: 0; }
+}
+@media print {
+  header, footer, .account-nav, .offer-banner, .recovery-box .form-actions, .recovery-box .check-row, .recovery-box .btn { display: none !important; }
+}
+
+/* ---------- menu do ícone de perfil (cabeçalho) ---------- */
+
+.sh-account-wrap { position: relative; display: flex; }
+.account-pop { position: absolute; top: calc(100% + 6px); right: 0; z-index: 70; display: grid; gap: 2px; width: 260px; padding: 16px 18px; border: 1px solid var(--line); background: var(--paper); box-shadow: 0 14px 34px rgba(0, 0, 0, 0.14); color: var(--ink); text-align: left; text-shadow: none; }
+.account-pop-hello { margin: 0 0 6px; font-family: var(--font-serif); font-size: 22px; line-height: 1.1; }
+.account-pop-text { margin: 0 0 10px; color: var(--body-2); font-size: 14px; line-height: 1.5; }
+.account-pop a:not(.btn) { padding: 10px 0; border-bottom: 1px solid var(--line); font-size: 14px; text-decoration: none; }
+.account-pop a:not(.btn):hover { opacity: 0.6; }
+.account-pop .btn { justify-content: center; text-align: center; }
+.account-pop .link-btn { justify-self: start; margin-top: 10px; font-size: 13px; }
+button.mm-row { width: 100%; border: 0; background: none; font: inherit; text-align: left; cursor: pointer; }

@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { SocialLinks } from "./SocialLinks";
 import { useCategories } from "./useCategories";
 import { useSegments } from "./useSegments";
+import { accountLinks } from "@/lib/account-menu";
 import { useFavorites } from "@/lib/favorites";
 import { useSession } from "@/lib/session";
 import type { SiteSettings } from "@/types/product";
@@ -34,9 +35,10 @@ function NavGroup({ label, url, highlight, onNavigate }: { label: string; url: s
 }
 
 /** Menu do celular: painel que desliza da esquerda com o menu principal, as categorias, a conta e as redes sociais. */
-export function MobileMenu({ open, onClose, nav, social }: { open: boolean; onClose: () => void; nav: SiteSettings["nav"]; social: SiteSettings["social"] }) {
+export function MobileMenu({ open, onClose, nav, social, pages }: { open: boolean; onClose: () => void; nav: SiteSettings["nav"]; social: SiteSettings["social"]; pages: SiteSettings["pages"] }) {
   const pathname = usePathname();
-  const { user } = useSession();
+  const router = useRouter();
+  const { user, signOut } = useSession();
   const { slugs } = useFavorites();
   const categories = useCategories("", "", "");
   const closeRef = useRef<HTMLButtonElement>(null);
@@ -96,9 +98,23 @@ export function MobileMenu({ open, onClose, nav, social }: { open: boolean; onCl
           )}
           <p className="mm-title">Minha conta</p>
           <ul className="mm-list">
-            <li><Link href={user ? "/conta" : "/auth"} className="mm-row" onClick={onClose}>{user ? `Olá, ${user.name?.split(" ")[0] ?? "cliente"}` : "Entrar"}</Link></li>
-            {!user && <li><Link href="/auth?modo=cadastro" className="mm-row" onClick={onClose}>Cadastre-se</Link></li>}
-            <li><Link href="/favoritos" className="mm-row" onClick={onClose}>Favoritos{slugs.length > 0 && <small>{slugs.length}</small>}</Link></li>
+            {user ? (
+              <>
+                {accountLinks(pages).map((l) => (
+                  <li key={l.url}>
+                    <Link href={l.url} className="mm-row" onClick={onClose}>
+                      {l.label}{l.url === "/favoritos" && slugs.length > 0 && <small>{slugs.length}</small>}
+                    </Link>
+                  </li>
+                ))}
+                <li><button type="button" className="mm-row" onClick={() => { onClose(); signOut(); router.push("/"); }}>Sair</button></li>
+              </>
+            ) : (
+              <>
+                <li><Link href="/auth" className="mm-row" onClick={onClose}>Entrar ou cadastrar-se</Link></li>
+                <li><Link href="/favoritos" className="mm-row" onClick={onClose}>Favoritos{slugs.length > 0 && <small>{slugs.length}</small>}</Link></li>
+              </>
+            )}
           </ul>
         </nav>
         <SocialLinks social={social} className="mm-social" />

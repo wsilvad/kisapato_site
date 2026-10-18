@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useState } from "react";
+import { AccountMenu } from "@/components/AccountMenu";
 import { CategoryLinks } from "@/components/CategoryStrip";
 import { Logo } from "@/components/Logo";
 import { MobileMenu } from "@/components/MobileMenu";
@@ -11,7 +12,6 @@ import { SearchBox } from "@/components/SearchBox";
 import { prefetchSegments } from "@/components/useSegments";
 import { useCart } from "@/lib/cart";
 import { useFavorites } from "@/lib/favorites";
-import { useSession } from "@/lib/session";
 import type { SiteSettings } from "@/types/product";
 
 /**
@@ -82,10 +82,9 @@ const Icon = {
  * menu (com as categorias) de ponta a ponta. Na página inicial fica transparente por cima da foto do banner e vira branco ao rolar. No
  * celular vira ☰ Menu + logo + busca e sacola, com o menu completo num painel lateral.
  */
-export function Header({ topbar, nav, social }: Pick<SiteSettings, "topbar" | "nav" | "social">) {
+export function Header({ topbar, nav, social, pages }: Pick<SiteSettings, "topbar" | "nav" | "social" | "pages">) {
   const { count: cartCount, openDrawer } = useCart();
   const { slugs } = useFavorites();
-  const { user } = useSession();
   const pathname = usePathname();
   const overHero = pathname === "/";
   const [scrolled, setScrolled] = useState(false);
@@ -142,9 +141,7 @@ export function Header({ topbar, nav, social }: Pick<SiteSettings, "topbar" | "n
             {Icon.heart}
             {slugs.length > 0 && <span className="sh-badge">{slugs.length}</span>}
           </Link>
-          <Link href={user ? "/conta" : "/auth"} className="sh-icon sh-account" aria-label={user ? "Minha conta" : "Entrar ou cadastrar-se"} title={user ? `Olá, ${user.name?.split(" ")[0] ?? "cliente"}` : "Entrar ou cadastrar-se"}>
-            {Icon.user}
-          </Link>
+          <AccountMenu pages={pages}>{Icon.user}</AccountMenu>
           <button type="button" className="sh-icon" aria-label={`Sacola${cartCount ? ` (${cartCount} itens)` : ""}`} title="Sacola" onClick={openDrawer}>
             {Icon.bag}
             {cartCount > 0 && <span className="sh-badge">{cartCount}</span>}
@@ -166,7 +163,7 @@ export function Header({ topbar, nav, social }: Pick<SiteSettings, "topbar" | "n
         </div>
       )}
 
-      <MobileMenu open={menuOpen} onClose={closeMenu} nav={nav} social={social} />
+      <MobileMenu open={menuOpen} onClose={closeMenu} nav={nav} social={social} pages={pages} />
     </header>
   );
 }

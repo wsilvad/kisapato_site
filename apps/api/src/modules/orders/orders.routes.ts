@@ -9,23 +9,48 @@ import { recordMovement } from "../stock/stock.service.js";
 export const ordersRouter = Router();
 ordersRouter.use(requireAuth);
 
-const createOrderBody = z.object({
-  items: z.array(z.object({ variantId: z.string().min(1), quantity: z.coerce.number().int().min(1).max(20) })).min(1),
-  shippingAddress: z.object({
-    recipient: z.string().trim().min(1),
-    zip: z.string().trim().min(8),
-    street: z.string().trim().min(1),
-    number: z.string().trim().min(1),
-    complement: z.string().optional(),
-    district: z.string().trim().min(1),
-    city: z.string().trim().min(1),
-    state: z.string().trim().length(2),
-  }),
+const shippingAddressBody = z.object({
+  recipient: z.string().trim().min(1),
+  zip: z.string().trim().min(8),
+  street: z.string().trim().min(1),
+  number: z.string().trim().min(1),
+  complement: z.string().optional(),
+  district: z.string().trim().min(1),
+  city: z.string().trim().min(1),
+  state: z.string().trim().length(2),
 });
+
+const createOrderBody = z
+  .object({
+    items: z.array(z.object({ variantId: z.string().min(1), quantity: z.coerce.number().int().min(1).max(20) })).min(1),
+    /** Endereço salvo na conta (no checkout, o padrão já vem escolhido). */
+    addressId: z.string().min(1).optional(),
+    /** Ou um endereço digitado na hora; com `saveAddress` ele também fica salvo na conta. */
+    shippingAddress: shippingAddressBody.optional(),
+    saveAddress: z.boolean().optional(),
+  })
+  .refine((b) => b.addressId || b.shippingAddress, "Informe o endereço de entrega");
 
 /** Checkout demonstrativo: valida estoque, baixa e grava o pedido como PENDING (sem pagamento real). */
 ordersRouter.post("/", async (req, res) => {
-  const { items, shippingAddress } = createOrderBody.parse(req.body);
+  const { items, addressId, shippingAddress: typedAddress, saveAddress } = createOrderBody.parse(req.body);
+  const profileId = req.auth!.sub;
+
+  // CPF é obrigatório para a nota fiscal
+  const profile = await prisma.profile.findUniqueOrThrow({ where: { id: profileId }, select: { cpf: true } });
+  if (!profile.cpf) throw new AppError("Cadastre seu CPF em Minha conta para finalizar a compra: ele vai na nota fiscal.", 409, "CPF_REQUIRED");
+
+  let shippingAddress: z.infer<typeof shippingAddressBody>;
+  if (addressId) {
+    const saved = await prisma.address.findFirst({ where: { id: addressId, profileId } });
+    if (!saved) throw new AppError("Endereço não encontrado", 404);
+    shippingAddress = {
+      recipient: saved.recipient, zip: saved.zip, street: saved.street, number: saved.number,
+      complement: saved.complement ?? undefined, district: saved.district, city: saved.city, state: saved.state,
+    };
+  } else {
+    shippingAddress = typedAddress!;
+  }
 
   const order = await prisma.$transaction(async (tx) => {
     let total = 0;
@@ -59,6 +84,13 @@ ordersRouter.post("/", async (req, res) => {
     });
     for (const [i, line] of lines.entries()) {
       await recordMovement(tx, { variantId: line.variantId, type: "SALE", quantity: -line.quantity, balance: balances[i]!, orderId: created.id });
+    }
+    // endereço digitado no checkout e marcado para salvar: entra na conta (o primeiro vira o padrão)
+    if (!addressId && saveAddress) {
+      const zip = shippingAddress.zip.replace(/\D/g, "");
+      const count = await tx.address.count({ where: { profileId } });
+      const duplicate = await tx.address.findFirst({ where: { profileId, zip, number: shippingAddress.number }, select: { id: true } });
+      if (count < 10 && !duplicate) await tx.address.create({ data: { ...shippingAddress, zip, profileId, isDefault: count === 0 } });
     }
     return created;
   });

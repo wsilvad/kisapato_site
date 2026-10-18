@@ -34,7 +34,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     <html lang="pt-BR" className={`${serif.variable} ${sans.variable}`}>
       <body>
         <Providers freeShippingAbove={settings.shipping.freeAbove}>
-          <StoreFrame header={<Header topbar={settings.topbar} nav={settings.nav} social={settings.social} />} footer={<Footer footer={settings.footer} social={settings.social} pages={settings.pages ?? []} />}>
+          <StoreFrame header={<Header topbar={settings.topbar} nav={settings.nav} social={settings.social} pages={settings.pages ?? []} />} footer={<Footer footer={settings.footer} social={settings.social} pages={settings.pages ?? []} />}>
             {children}
           </StoreFrame>
         </Providers>

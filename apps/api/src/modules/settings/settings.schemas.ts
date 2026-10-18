@@ -148,17 +148,8 @@ export const defaultSiteSettings: SiteSettings = {
   ],
   pages: defaultPages,
   footer: {
+    // “Ajuda” (conta, pedidos, favoritos, trocas, entrega) agora fica no menu do ícone de perfil do cabeçalho.
     columns: [
-      {
-        title: "Ajuda",
-        links: [
-          { label: "Minha conta", url: "/conta" },
-          { label: "Meus pedidos", url: "/conta#pedidos" },
-          { label: "Meus favoritos", url: "/favoritos" },
-          { label: "Trocas e devoluções", url: "/institucional/trocas-e-devolucoes" },
-          { label: "Políticas de entrega", url: "/institucional/politicas-de-entrega" },
-        ],
-      },
       {
         title: "Institucional",
         links: [

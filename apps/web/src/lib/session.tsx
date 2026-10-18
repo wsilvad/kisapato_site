@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { api, TOKEN_KEY, type AuthResult } from "@/lib/api";
+import { api, ApiError, TOKEN_KEY, type AuthResult } from "@/lib/api";
 import type { User } from "@/types/product";
 
 interface SessionValue {
@@ -10,6 +10,8 @@ interface SessionValue {
   loading: boolean;
   signIn: (result: AuthResult) => void;
   signOut: () => void;
+  /** Troca os dados da conta em memória (depois de editar o perfil, por exemplo). */
+  updateUser: (user: User) => void;
 }
 
 const SessionContext = createContext<SessionValue | null>(null);
@@ -27,7 +29,10 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     api
       .me()
       .then(setUser)
-      .catch(() => window.localStorage.removeItem(TOKEN_KEY))
+      .catch((err) => {
+        // só uma sessão recusada pela API (401) apaga o token; queda de rede ou API reiniciando não desloga o cliente
+        if (err instanceof ApiError && err.status === 401) window.localStorage.removeItem(TOKEN_KEY);
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -41,7 +46,9 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
   }, []);
 
-  const value = useMemo(() => ({ user, loading, signIn, signOut }), [user, loading, signIn, signOut]);
+  const updateUser = useCallback((next: User) => setUser(next), []);
+
+  const value = useMemo(() => ({ user, loading, signIn, signOut, updateUser }), [user, loading, signIn, signOut, updateUser]);
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
 }
 

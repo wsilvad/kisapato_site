@@ -51,14 +51,125 @@ model Profile {
   id           String   @id @default(uuid()) @db.Uuid
   email        String   @unique
   passwordHash String
+  /// Nome completo.
   name         String?
   phone        String?
+  /// CPF só com dígitos (nota fiscal). Único: uma conta por CPF.
+  cpf          String?  @unique
+  /// Telefone confirmado por código. Só ele serve para recuperar a senha por SMS; único para o SMS achar uma conta só.
+  verifiedPhone String? @unique
+  /// E-mail confirmado por código (contas criadas antes da confirmação obrigatória ficam sem data).
+  emailVerifiedAt DateTime?
+  /// Cadastro novo que ainda não confirmou e-mail e telefone: não entra, não reserva e-mail/CPF e pode ser substituído.
+  pendingVerification Boolean @default(false)
   role         Role     @default(CUSTOMER)
+  /// Sobe a cada troca de senha ou de 2FA e derruba as sessões abertas (o token guarda a versão).
+  tokenVersion Int      @default(0)
+  passwordChangedAt DateTime?
+  twoFactorEnabled  Boolean @default(false)
+  /// Segredo TOTP cifrado (AES-256-GCM). Nunca sai da API; fica oculto das consultas por padrão.
+  twoFactorSecret   String?
+  /// O cliente já viu e dispensou a oferta de ativar a verificação em duas etapas.
+  twoFactorOfferDismissedAt DateTime?
   orders       Order[]
+  addresses    Address[]
+  cards        SavedCard[]
+  codes        VerificationCode[]
+  recoveryCodes RecoveryCode[]
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
   @@map("profiles")
+}
+
+/// Endereço de entrega do cliente. Um só é o padrão (`isDefault`) e vem preenchido nas compras.
+model Address {
+  id         String   @id @default(uuid())
+  profileId  String   @db.Uuid
+  profile    Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  /// Apelido ("Casa", "Trabalho").
+  label      String?
+  recipient  String
+  /// CEP só com dígitos.
+  zip        String
+  street     String
+  number     String
+  complement String?
+  district   String
+  city       String
+  state      String
+  isDefault  Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([profileId])
+  @@map("addresses")
+}
+
+/// Cartão salvo: só o que o gateway de pagamento devolve (token, bandeira, 4 últimos dígitos e validade).
+/// O número completo e o CVV nunca passam por aqui nem são gravados.
+model SavedCard {
+  id           String   @id @default(uuid())
+  profileId    String   @db.Uuid
+  profile      Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  /// Gateway que emitiu o token (ex.: "mercadopago").
+  provider     String
+  /// Token do cartão no gateway.
+  token        String
+  brand        String
+  last4        String
+  expMonth     Int
+  expYear      Int
+  holderName   String
+  isDefault    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+
+  @@unique([provider, token])
+  @@index([profileId])
+  @@map("saved_cards")
+}
+
+enum CodeChannel {
+  EMAIL
+  SMS
+}
+
+enum CodePurpose {
+  PASSWORD_RESET
+  PHONE_VERIFY
+  EMAIL_VERIFY
+}
+
+/// Código de uso único enviado por e-mail ou SMS (recuperar senha, confirmar telefone). Só o hash é guardado.
+model VerificationCode {
+  id          String      @id @default(uuid())
+  profileId   String      @db.Uuid
+  profile     Profile     @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  channel     CodeChannel
+  purpose     CodePurpose
+  /// E-mail ou telefone para onde o código foi enviado.
+  destination String
+  codeHash    String
+  expiresAt   DateTime
+  attempts    Int         @default(0)
+  consumedAt  DateTime?
+  createdAt   DateTime    @default(now())
+
+  @@index([profileId, purpose])
+  @@map("verification_codes")
+}
+
+/// Códigos de emergência da verificação em duas etapas (uso único). Só o hash é guardado.
+model RecoveryCode {
+  id        String    @id @default(uuid())
+  profileId String    @db.Uuid
+  profile   Profile   @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  codeHash  String
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([profileId])
+  @@map("recovery_codes")
 }
 
 /// Classe de produto: o nível acima da categoria (ex.: Calçados, Acessórios).

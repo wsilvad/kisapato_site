@@ -12,6 +12,44 @@ const envSchema = z.object({
   JWT_EXPIRES_IN: z.string().default("7d"),
   /** Pasta onde as fotos enviadas pelo admin são gravadas (na Discloud, um caminho dentro do app). */
   UPLOAD_DIR: z.string().default("uploads"),
+  /**
+   * Chave (32 bytes em base64) que cifra o segredo da verificação em duas etapas no banco. Gere com
+   * `openssl rand -base64 32` e guarde só nas variáveis do servidor. Em desenvolvimento, se faltar, deriva do JWT_SECRET;
+   * em produção, sem ela a verificação em duas etapas fica indisponível.
+   */
+  DATA_ENCRYPTION_KEY: z
+    .string()
+    .optional()
+    .refine((v) => !v || Buffer.from(v, "base64").length === 32, "DATA_ENCRYPTION_KEY precisa ter 32 bytes em base64"),
+  /** Quantos proxies confiáveis ficam na frente da API (a Discloud usa 1); define o IP lido pelo limitador de tentativas. */
+  TRUST_PROXY: z.coerce.number().int().min(0).optional(),
+  /** Envio de e-mail (recuperar senha): URL SMTP, ex.: smtps://usuario:senha@smtp.exemplo.com:465. Sem ela, o e-mail fica indisponível. */
+  SMTP_URL: z.string().optional(),
+  /**
+   * Atalho para enviar pelo Gmail: o endereço da conta e uma SENHA DE APP (Conta Google → Segurança → Senhas de app, exige a
+   * verificação em duas etapas). Os espaços da senha são ignorados. Se SMTP_URL também existir, ela tem prioridade.
+   */
+  GMAIL_USER: z.email().optional(),
+  GMAIL_APP_PASSWORD: z.string().optional(),
+  /** Remetente exibido. Sem ele, usa o GMAIL_USER (o Gmail só envia como a própria conta). */
+  MAIL_FROM: z.string().optional(),
+  /**
+   * Envio de SMS. "twilio" envia de verdade (exige TWILIO_*); "console" só fora de produção e imprime o código no log.
+   * Sem driver, a confirmação do telefone por SMS fica desligada (ver PHONE_VERIFICATION).
+   */
+  SMS_DRIVER: z.enum(["console", "twilio"]).optional(),
+  /**
+   * Confirmação do telefone por SMS no cadastro. "auto" (padrão): liga sozinha quando houver provedor de SMS configurado e
+   * fica desligada enquanto não houver (o cadastro pede só o código do e-mail). "required": sempre exige (sem SMS, o cadastro
+   * fica indisponível). "off": nunca exige. O telefone continua obrigatório no cadastro nos três casos.
+   */
+  PHONE_VERIFICATION: z.enum(["auto", "required", "off"]).default("auto"),
+  TWILIO_ACCOUNT_SID: z.string().optional(),
+  TWILIO_AUTH_TOKEN: z.string().optional(),
+  /** Número de origem (E.164, ex.: +15551234567) ou o SID de um Messaging Service (começa com "MG"). */
+  TWILIO_FROM: z.string().optional(),
+  /** Gateway que tokeniza cartões (ex.: "mercadopago"). Sem ele, salvar cartão fica indisponível. */
+  CARD_PROVIDER: z.string().optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);

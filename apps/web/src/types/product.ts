@@ -124,7 +124,51 @@ export interface User {
   email: string;
   name: string | null;
   phone: string | null;
+  /** CPF só com dígitos (null em contas antigas, que precisam informá-lo antes de comprar). */
+  cpf: string | null;
   role: "CUSTOMER" | "ADMIN";
+  twoFactorEnabled: boolean;
+  /** A verificação em duas etapas ainda não foi ativada nem dispensada: mostrar a oferta. */
+  twoFactorOffer: boolean;
+  phoneVerified: boolean;
+}
+
+/** Endereço de entrega salvo na conta. Um só é o padrão. */
+export interface Address {
+  id: string;
+  label: string | null;
+  recipient: string;
+  zip: string;
+  street: string;
+  number: string;
+  complement: string | null;
+  district: string;
+  city: string;
+  state: string;
+  isDefault: boolean;
+}
+
+/** Cartão salvo: só bandeira, 4 últimos dígitos e validade (o número nunca é guardado). */
+export interface SavedCard {
+  id: string;
+  brand: string;
+  last4: string;
+  expMonth: number;
+  expYear: number;
+  holderName: string;
+  isDefault: boolean;
+}
+
+/** O que o servidor consegue oferecer hoje. */
+export interface Capabilities {
+  /** false = cadastro indisponível (não há como enviar os códigos). */
+  registration: boolean;
+  /** O cadastro confirma também o telefone por SMS? (liga sozinho quando há provedor de SMS.) */
+  phoneVerification: boolean;
+  emailRecovery: boolean;
+  smsRecovery: boolean;
+  twoFactor: boolean;
+  savedCards: boolean;
 }
 
 export interface Campaign {

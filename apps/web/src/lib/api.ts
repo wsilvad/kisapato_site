@@ -1,5 +1,5 @@
 import { getAdminToken } from "@/lib/admin-session";
-import type { AdminStats, Audience, Brand, Campaign, Category, CustomerStat, DashFilters, Facets, Inventory, Order, Overview, Paginated, Product, ProductClass, ShippingQuote, Showcase, SiteSettings, StockMovement, Story, User } from "@/types/product";
+import type { AdminStats, Address, Audience, Brand, Campaign, Capabilities, Category, CustomerStat, DashFilters, Facets, Inventory, Order, Overview, Paginated, Product, ProductClass, SavedCard, ShippingQuote, Showcase, SiteSettings, StockMovement, Story, User } from "@/types/product";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3333/api";
 /** Origem da API (sem /api), usada para servir as fotos enviadas em /uploads. */
@@ -22,6 +22,10 @@ export class ApiError extends Error {
   constructor(
     message: string,
     public readonly status: number,
+    /** Código estável do caso (ex.: "CPF_REQUIRED"), quando a API informa. */
+    public readonly code?: string,
+    /** Corpo inteiro da resposta de erro (campos extras como `phoneHint`, `emailOk`). */
+    public readonly details?: Record<string, unknown>,
   ) {
     super(message);
   }
@@ -43,8 +47,8 @@ async function request<T>(path: string, init: RequestInit & { json?: unknown; ad
     cache: "no-store",
   });
   if (!res.ok) {
-    const body = (await res.json().catch(() => null)) as { error?: string } | null;
-    throw new ApiError(body?.error ?? `API ${res.status} em ${path}`, res.status);
+    const body = (await res.json().catch(() => null)) as ({ error?: string; code?: string } & Record<string, unknown>) | null;
+    throw new ApiError(body?.error ?? `API ${res.status} em ${path}`, res.status, body?.code, body ?? undefined);
   }
   return res.status === 204 ? (undefined as T) : ((await res.json()) as T);
 }
@@ -52,6 +56,40 @@ async function request<T>(path: string, init: RequestInit & { json?: unknown; ad
 export interface AuthResult {
   token: string;
   user: User;
+}
+
+/** Cadastro criado, mas a conta só abre depois de confirmar os códigos enviados por e-mail e SMS. */
+export interface PendingRegistration {
+  verificationRequired: true;
+  email: string;
+  /** Também há um código por SMS para confirmar (só quando o provedor de SMS está configurado). */
+  phoneRequired: boolean;
+  /** Telefone com parte oculta, ex.: (51) *****-8888 (vazio se o SMS não é exigido). */
+  phoneHint: string;
+}
+
+/** Senha certa, mas a conta tem verificação em duas etapas: falta o código (use `api.twoFactorLogin`). */
+export interface TwoFactorChallenge {
+  twoFactorRequired: true;
+  challenge: string;
+}
+
+export function needsTwoFactor(result: AuthResult | TwoFactorChallenge): result is TwoFactorChallenge {
+  return "twoFactorRequired" in result;
+}
+
+/** Campos de um endereço ao criar ou editar. */
+export interface AddressInput {
+  label?: string;
+  recipient: string;
+  zip: string;
+  street: string;
+  number: string;
+  complement?: string;
+  district: string;
+  city: string;
+  state: string;
+  isDefault?: boolean;
 }
 
 export interface ShippingAddress {
@@ -98,14 +136,49 @@ export const api = {
   home: () => request<{ campaigns: Campaign[]; showcases: Required<Showcase>[]; categories: Category[]; audiences: Audience[]; stories: Story[] }>("/home"),
   settings: () => request<SiteSettings>("/settings"),
 
-  register: (data: { name: string; email: string; phone?: string; password: string }) =>
-    request<AuthResult>("/auth/register", { method: "POST", json: data }),
-  login: (data: { email: string; password: string }) => request<AuthResult>("/auth/login", { method: "POST", json: data }),
+  /** O cadastro não abre sessão: devolve o pedido de confirmação dos dois códigos (e-mail e SMS). */
+  register: (data: { name: string; email: string; cpf: string; phone: string; password: string }) =>
+    request<PendingRegistration>("/auth/register", { method: "POST", json: data }),
+  verifyRegistration: (data: { email: string; emailCode: string; phoneCode?: string }) =>
+    request<AuthResult>("/auth/register/verify", { method: "POST", json: data }),
+  resendRegistrationCodes: (email: string) => request<{ ok: true; message: string }>("/auth/register/resend", { method: "POST", json: { email } }),
+  login: (data: { email: string; password: string }) => request<AuthResult | TwoFactorChallenge>("/auth/login", { method: "POST", json: data }),
+  /** Segunda etapa da entrada: código do aplicativo autenticador ou código de emergência. */
+  twoFactorLogin: (data: { challenge: string; code: string }) => request<AuthResult>("/auth/2fa/login", { method: "POST", json: data }),
   me: () => request<User>("/auth/me"),
+  capabilities: () => request<Capabilities>("/auth/capabilities"),
+  /** `identifier`: e-mail da conta ou telefone confirmado. A resposta é sempre a mesma, exista a conta ou não. */
+  forgotPassword: (identifier: string) => request<{ ok: true; message: string }>("/auth/forgot", { method: "POST", json: { identifier } }),
+  resetPassword: (data: { identifier: string; code: string; newPassword: string }) => request<{ ok: true }>("/auth/reset", { method: "POST", json: data }),
+
+  account: {
+    updateProfile: (data: { name: string; cpf: string; phone?: string }) => request<User>("/account/profile", { method: "PUT", json: data }),
+    changePassword: (data: { currentPassword: string; newPassword: string }) => request<AuthResult>("/account/password", { method: "PUT", json: data }),
+    sendPhoneCode: () => request<{ ok: true }>("/account/phone/send-code", { method: "POST" }),
+    confirmPhone: (code: string) => request<User>("/account/phone/confirm", { method: "POST", json: { code } }),
+
+    addresses: () => request<Address[]>("/account/addresses"),
+    addAddress: (data: AddressInput) => request<Address>("/account/addresses", { method: "POST", json: data }),
+    updateAddress: (id: string, data: AddressInput) => request<Address>(`/account/addresses/${id}`, { method: "PUT", json: data }),
+    setDefaultAddress: (id: string) => request<Address[]>(`/account/addresses/${id}/default`, { method: "PUT" }),
+    deleteAddress: (id: string) => request<void>(`/account/addresses/${id}`, { method: "DELETE" }),
+
+    twoFactorStatus: () => request<{ enabled: boolean; available: boolean; recoveryCodesLeft: number }>("/account/2fa/status"),
+    twoFactorSetup: () => request<{ secret: string; otpauthUrl: string; qrDataUrl: string }>("/account/2fa/setup", { method: "POST" }),
+    twoFactorEnable: (code: string) => request<AuthResult & { recoveryCodes: string[] }>("/account/2fa/enable", { method: "POST", json: { code } }),
+    twoFactorDisable: (data: { password: string; code: string }) => request<AuthResult>("/account/2fa/disable", { method: "POST", json: data }),
+    newRecoveryCodes: (data: { password: string; code: string }) => request<{ recoveryCodes: string[] }>("/account/2fa/recovery-codes", { method: "POST", json: data }),
+    dismissTwoFactorOffer: () => request<User>("/account/2fa/dismiss-offer", { method: "POST" }),
+
+    cards: () => request<SavedCard[]>("/account/cards"),
+    setDefaultCard: (id: string) => request<SavedCard[]>(`/account/cards/${id}/default`, { method: "PUT" }),
+    deleteCard: (id: string) => request<void>(`/account/cards/${id}`, { method: "DELETE" }),
+  },
   /** Confere a sessão do painel (token da aba) e devolve o usuário. */
   adminMe: () => request<User>("/auth/me", { admin: true }),
 
-  createOrder: (data: { items: { variantId: string; quantity: number }[]; shippingAddress: ShippingAddress }) =>
+  /** Endereço salvo (`addressId`) ou digitado na hora (`shippingAddress`, com `saveAddress` para guardá-lo na conta). */
+  createOrder: (data: { items: { variantId: string; quantity: number }[]; addressId?: string; shippingAddress?: ShippingAddress; saveAddress?: boolean }) =>
     request<Order>("/orders", { method: "POST", json: data }),
   myOrders: () => request<Order[]>("/orders/mine"),
 

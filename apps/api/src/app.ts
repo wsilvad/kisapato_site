@@ -8,6 +8,9 @@ import { routes } from "./routes/index.js";
 
 export const app = express();
 
+// Atrás do proxy da Discloud o IP do cliente vem no X-Forwarded-For; o limitador de tentativas lê o IP daqui.
+app.set("trust proxy", env.TRUST_PROXY ?? (env.NODE_ENV === "production" ? 1 : 0));
+
 app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
 app.use(cors({ origin: env.CORS_ORIGIN.split(",") }));
 app.use(express.json());

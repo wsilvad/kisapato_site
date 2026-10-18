@@ -2,16 +2,11 @@ import Link from "next/link";
 import { Logo } from "@/components/Logo";
 import { PAYMENT_ICONS, PaymentIcon } from "@/components/PaymentIcons";
 import { SocialLinks } from "@/components/SocialLinks";
+import { isEmptyPage } from "@/lib/account-menu";
 import type { SiteSettings } from "@/types/product";
 
-/** Link para uma página institucional ainda sem texto: fica fora do rodapé até a loja escrever a página. */
-function isEmptyPage(url: string, pages: SiteSettings["pages"]) {
-  const slug = url.match(/^\/institucional\/([^/?#]+)$/)?.[1];
-  return slug !== undefined && !pages.some((p) => p.slug === slug && p.body.trim());
-}
-
 /**
- * Rodapé no estilo da Luz da Lua: logo no centro, os grupos de links (Ajuda, Institucional…) como menus que abrem
+ * Rodapé no estilo da Luz da Lua: logo no centro, os grupos de links (Institucional…) como menus que abrem
  * só ao clicar e, embaixo, dados da loja, redes sociais e formas de pagamento.
  */
 export function Footer({ footer, social, pages }: { footer: SiteSettings["footer"]; social: SiteSettings["social"]; pages: SiteSettings["pages"] }) {

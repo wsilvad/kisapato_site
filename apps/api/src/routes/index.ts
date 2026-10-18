@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { accountRouter } from "../modules/account/account.routes.js";
 import { adminRouter } from "../modules/admin/admin.routes.js";
 import { authRouter } from "../modules/auth/auth.routes.js";
 import { audiencesRouter, brandsRouter, categoriesRouter, classesRouter } from "../modules/categories/categories.routes.js";
@@ -22,6 +23,7 @@ routes.use("/home", homeRouter);
 routes.use("/settings", settingsRouter);
 routes.use("/shipping", shippingRouter);
 routes.use("/auth", authRouter);
+routes.use("/account", accountRouter);
 routes.use("/orders", ordersRouter);
 routes.use("/admin", adminRouter);
 routes.use("/admin/uploads", uploadsRouter);
