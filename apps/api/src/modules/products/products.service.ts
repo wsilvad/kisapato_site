@@ -2,6 +2,7 @@ import type { Prisma } from "../../generated/prisma/client.js";
 import { AppError } from "../../lib/errors.js";
 import { prisma } from "../../lib/prisma.js";
 import type { ListProductsQuery, ProductFilters } from "./products.schemas.js";
+import { withColorPhotos, withFirstColorPhotos } from "./colors.js";
 import { ageGroupsOf, genderWhere, gendersOf } from "./segment.js";
 
 /**
@@ -22,6 +23,8 @@ export function seloWhere(selo: "lancamento" | "promocao" | "destaque"): Prisma.
 }
 
 const include = { brand: true, category: { include: { productClass: true } } };
+/** Inclui as cores (com as fotos de cada uma) e as numerações, para a vitrine mostrar a foto da primeira cor. */
+export const withColorsInclude = { ...include, colors: true, variants: { select: { color: true } } };
 
 /** Monta o `where` dos filtros da vitrine (sem a regra de visibilidade, que o chamador soma). */
 function filtersWhere({ category, productClass, ageGroup, gender, brand, color, size, minPrice, maxPrice, selo, slugs, search }: Partial<ProductFilters>): Prisma.ProductWhereInput[] {
@@ -58,7 +61,7 @@ export async function listProducts({ page, pageSize, sort, ...filters }: ListPro
   const [items, total] = await Promise.all([
     prisma.product.findMany({
       where,
-      include,
+      include: withColorsInclude,
       orderBy: orderings[sort],
       skip: (page - 1) * pageSize,
       take: pageSize,
@@ -66,7 +69,7 @@ export async function listProducts({ page, pageSize, sort, ...filters }: ListPro
     prisma.product.count({ where }),
   ]);
 
-  return { items, page, pageSize, total, totalPages: Math.ceil(total / pageSize) };
+  return { items: items.map(withFirstColorPhotos), page, pageSize, total, totalPages: Math.ceil(total / pageSize) };
 }
 
 /**
@@ -187,12 +190,13 @@ export async function getProductBySlug(slug: string) {
     where: { AND: [visibleProductWhere, { slug }] },
     include: {
       ...include,
+      colors: true,
       variants: { orderBy: [{ color: "asc" }, { size: "asc" }] },
     },
   });
 
   if (!product) throw new AppError("Produto não encontrado", 404);
-  return product;
+  return withColorPhotos(product);
 }
 
 /**
@@ -209,22 +213,25 @@ export async function relatedProducts(slug: string, limit = 4) {
 
   const candidates = await prisma.product.findMany({
     where: { AND: [visibleProductWhere, { id: { not: base.id } }, { categoryId: { not: base.categoryId } }] },
-    include: { ...include, variants: { select: { stock: true } } },
+    include: { ...include, colors: true, variants: { select: { stock: true, color: true } } },
     orderBy: { createdAt: "desc" },
     take: 80,
   });
 
   return candidates
     .filter((c) => c.variants.some((v) => v.stock > 0))
-    .map(({ variants: _variants, ...product }) => ({
-      product,
-      score:
-        (product.ageGroup === base.ageGroup ? 3 : 0) +
-        (product.gender === base.gender || product.gender === "UNISSEX" || base.gender === "UNISSEX" ? 3 : 0) +
-        (product.category.classId !== base.category.classId ? 2 : 0) +
-        (product.brandId && product.brandId === base.brandId ? 1 : 0) +
-        (product.images.length > 0 ? 1 : 0),
-    }))
+    .map((candidate) => {
+      const product = withFirstColorPhotos(candidate);
+      return {
+        product,
+        score:
+          (product.ageGroup === base.ageGroup ? 3 : 0) +
+          (product.gender === base.gender || product.gender === "UNISSEX" || base.gender === "UNISSEX" ? 3 : 0) +
+          (product.category.classId !== base.category.classId ? 2 : 0) +
+          (product.brandId && product.brandId === base.brandId ? 1 : 0) +
+          (product.images.length > 0 ? 1 : 0),
+      };
+    })
     .sort((a, b) => b.score - a.score)
     .slice(0, limit)
     .map((x) => x.product);

@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { prisma } from "../../lib/prisma.js";
+import { withFirstColorPhotos } from "../products/colors.js";
 import { visibleProductWhere } from "../products/products.service.js";
 
 export const homeRouter = Router();
@@ -28,12 +29,14 @@ homeRouter.get("/", async (_req, res) => {
   const withProducts = await Promise.all(
     showcases.map(async (showcase) => ({
       ...showcase,
-      products: await prisma.product.findMany({
-        where: { AND: [visibleProductWhere, { badge: showcase.selectionRule }] },
-        include: { category: true },
-        orderBy: { createdAt: "desc" },
-        take: showcase.itemLimit,
-      }),
+      products: (
+        await prisma.product.findMany({
+          where: { AND: [visibleProductWhere, { badge: showcase.selectionRule }] },
+          include: { category: true, colors: true, variants: { select: { color: true } } },
+          orderBy: { createdAt: "desc" },
+          take: showcase.itemLimit,
+        })
+      ).map(withFirstColorPhotos),
     })),
   );
 

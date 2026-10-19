@@ -3,22 +3,31 @@
 import { useMemo, useState } from "react";
 import { FavoriteButton } from "@/components/FavoriteButton";
 import { ShippingCalc } from "@/components/pdp/ShippingCalc";
+import { thumbUrl } from "@/lib/api";
 import { useCart } from "@/lib/cart";
 import { formatPrice, installmentText, maxInstallments } from "@/lib/format";
-import type { Product } from "@/types/product";
+import type { Product, ProductColor } from "@/types/product";
+
+interface Props {
+  product: Product;
+  /** Cores na ordem da loja (a primeira é a que a página abre), cada uma com a miniatura da sua primeira foto. */
+  colors: ProductColor[];
+  color: string;
+  onColorChange: (color: string) => void;
+  /** Foto da cor escolhida, que vai para a sacola. */
+  cartImage?: string;
+}
 
 /** Coluna de informações da página do produto: nome, código, preço, pagamento, cor, numeração, compra e frete. */
-export function ProductInfo({ product }: { product: Product }) {
+export function ProductInfo({ product, colors, color, onColorChange, cartImage }: Props) {
   const { add } = useCart();
   const variants = useMemo(() => product.variants ?? [], [product.variants]);
-  const colors = useMemo(() => [...new Set(variants.map((v) => v.color))], [variants]);
-  const [color, setColor] = useState(colors[0] ?? "");
   const [variantId, setVariantId] = useState("");
   const [hint, setHint] = useState(false);
 
   const sizes = variants.filter((v) => v.color === color);
   const selected = variants.find((v) => v.id === variantId);
-  const code = selected?.sku ?? variants[0]?.sku;
+  const code = selected?.sku ?? sizes[0]?.sku ?? variants[0]?.sku;
   const price = Number(product.price);
   const installments = maxInstallments(price);
   const discount = product.compareAtPrice ? Math.round((1 - price / Number(product.compareAtPrice)) * 100) : 0;
@@ -26,7 +35,7 @@ export function ProductInfo({ product }: { product: Product }) {
 
   function handleAdd() {
     if (!selected) return setHint(true);
-    add({ variantId: selected.id, slug: product.slug, name: product.name, image: product.images[0], size: selected.size, color: selected.color, price: product.price, stock: selected.stock });
+    add({ variantId: selected.id, slug: product.slug, name: product.name, image: cartImage ?? product.images[0], size: selected.size, color: selected.color, price: product.price, stock: selected.stock });
   }
 
   return (
@@ -68,7 +77,15 @@ export function ProductInfo({ product }: { product: Product }) {
               <legend>Cor: <strong>{color}</strong></legend>
               <div className="pdp-colors">
                 {colors.map((c) => (
-                  <button key={c} type="button" className={c === color ? "is-on" : undefined} aria-pressed={c === color} onClick={() => (setColor(c), setVariantId(""), setHint(false))}>{c}</button>
+                  <button key={c.name} type="button" className={c.name === color ? "is-on" : undefined} aria-pressed={c.name === color} aria-label={`Cor ${c.name}`} onClick={() => (onColorChange(c.name), setVariantId(""), setHint(false))}>
+                    <span className="pdp-swatch">
+                      {c.images[0] ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={thumbUrl(c.images[0])} alt="" loading="lazy" draggable={false} />
+                      ) : null}
+                    </span>
+                    <span className="pdp-color-name">{c.name}</span>
+                  </button>
                 ))}
               </div>
             </fieldset>

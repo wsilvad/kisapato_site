@@ -2,9 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ProductCard } from "@/components/ProductCard";
-import { ProductGallery } from "@/components/ProductGallery";
 import { AboutProduct } from "@/components/pdp/AboutProduct";
-import { ProductInfo } from "@/components/pdp/ProductInfo";
+import { ProductPurchase } from "@/components/pdp/ProductPurchase";
 import { api } from "@/lib/api";
 import { segmentLabel } from "@/lib/segment";
 import type { Product } from "@/types/product";
@@ -52,10 +51,7 @@ export default async function ProdutoPage({ params }: { params: Promise<{ slug: 
       </nav>
 
       <div className="pdp-grid">
-        <div className="product-media">
-          <ProductGallery images={product.images} name={product.name} />
-        </div>
-        <ProductInfo product={product} />
+        <ProductPurchase product={product} />
       </div>
 
       <AboutProduct description={product.description} care={product.careInstructions ?? null} specs={specs} />

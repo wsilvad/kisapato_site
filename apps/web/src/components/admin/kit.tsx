@@ -246,8 +246,8 @@ export function MediaField({ label, value, onChange, hint }: { label: string; va
   );
 }
 
-/** Várias fotos; a primeira é a principal e a ordem pode ser alterada. */
-export function ImageGallery({ value, onChange }: { value: string[]; onChange: (urls: string[]) => void }) {
+/** Várias fotos; a primeira é a principal e a ordem pode ser alterada. `max` limita quantas cabem (ex.: 4 por cor). */
+export function ImageGallery({ value, onChange, max, label = "Fotos (a primeira é a principal)" }: { value: string[]; onChange: (urls: string[]) => void; max?: number; label?: string }) {
   const [error, setError] = useState("");
   const { busy, upload } = useUpload(setError);
   const input = useRef<HTMLInputElement>(null);
@@ -261,7 +261,7 @@ export function ImageGallery({ value, onChange }: { value: string[]; onChange: (
 
   return (
     <div className="field">
-      <span className="field-label">Fotos (a primeira é a principal)</span>
+      <span className="field-label">{label}{max !== undefined && <small> · {value.length}/{max}</small>}</span>
       <div className="gallery">
         {value.map((url, i) => (
           <figure key={url} className="gallery-item">
@@ -275,9 +275,11 @@ export function ImageGallery({ value, onChange }: { value: string[]; onChange: (
             </div>
           </figure>
         ))}
-        <button type="button" className="gallery-add" disabled={busy} onClick={() => input.current?.click()}>
-          {busy ? "Enviando…" : "+ Adicionar fotos"}
-        </button>
+        {(max === undefined || value.length < max) && (
+          <button type="button" className="gallery-add" disabled={busy} onClick={() => input.current?.click()}>
+            {busy ? "Enviando…" : "+ Adicionar fotos"}
+          </button>
+        )}
       </div>
       <input
         ref={input}
@@ -289,8 +291,10 @@ export function ImageGallery({ value, onChange }: { value: string[]; onChange: (
           const urls = await upload(e.target.files);
           e.target.value = "";
           if (urls.length) {
-            setError("");
-            onChange([...value, ...urls]);
+            const next = [...value, ...urls];
+            if (max !== undefined && next.length > max) setError(`Cabem no máximo ${max} fotos aqui; as últimas enviadas ficaram de fora.`);
+            else setError("");
+            onChange(max === undefined ? next : next.slice(0, max));
           }
         }}
       />

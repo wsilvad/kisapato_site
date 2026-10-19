@@ -34,11 +34,19 @@ interface FormState {
   careInstructions: string;
   images: string[];
   variants: VariantRow[];
+  /** Fotos de cada cor (até 4), pelo nome da cor. */
+  colorImages: Record<string, string[]>;
 }
+
+/** Quantas fotos cada cor aceita. */
+const MAX_COLOR_PHOTOS = 4;
+
+/** Cores das variações, na ordem em que aparecem (a primeira é a que a página do produto abre). */
+const colorsOfVariants = (variants: VariantRow[]) => [...new Set(variants.map((v) => v.color.trim()).filter(Boolean))];
 
 const EMPTY: FormState = {
   name: "", slug: "", slugTouched: false, brandId: "", ageGroup: "ADULTO", gender: "UNISSEX", reference: "", categoryId: "", price: "",
-  compareAtPrice: "", costPrice: "", badge: "", active: true, description: "", careInstructions: "", images: [], variants: [],
+  compareAtPrice: "", costPrice: "", badge: "", active: true, description: "", careInstructions: "", images: [], variants: [], colorImages: {},
 };
 
 /** SKU automático: slug do produto + cor + numeração (ex.: bota-couro-trail-marrom-40). */
@@ -52,6 +60,7 @@ function fromProduct(p: Product): FormState {
     categoryId: p.categoryId ?? p.category.id, price: p.price, compareAtPrice: p.compareAtPrice ?? "", costPrice: p.costPrice ?? "", badge: p.badge ?? "",
     active: p.active ?? true, description: p.description ?? "", careInstructions: p.careInstructions ?? "", images: p.images,
     variants: (p.variants ?? []).map((v) => ({ color: v.color, size: String(v.size), stock: String(v.stock), sku: v.sku === autoSku(p.slug, v.color, String(v.size)) ? "" : v.sku })),
+    colorImages: Object.fromEntries((p.colors ?? []).map((c) => [c.name, c.images])),
   };
 }
 
@@ -65,6 +74,7 @@ function toBody(f: FormState) {
       color: v.color.trim(), size: Number(v.size), stock: Number(v.stock) || 0,
       sku: skuOf(f.slug, v),
     })),
+    colors: colorsOfVariants(f.variants).map((name) => ({ name, images: (f.colorImages[name] ?? []).slice(0, MAX_COLOR_PHOTOS) })),
   };
 }
 
@@ -188,7 +198,7 @@ export default function ProductsAdmin() {
                 const stock = p.variants?.reduce((sum, v) => sum + v.stock, 0) ?? 0;
                 return (
                   <tr key={p.id} className={p.active === false ? "is-off" : undefined}>
-                    <td><Thumb url={p.images[0]} /></td>
+                    <td><Thumb url={p.images[0] ?? p.colors?.find((c) => c.images.length > 0)?.images[0]} /></td>
                     <td><strong>{p.name}</strong>{p.badge && <> <Badge tone="warn">{BADGE_LABEL[p.badge]}</Badge></>}<br /><small>{[p.brand?.name, p.reference].filter(Boolean).join(" · ") || p.slug}</small></td>
                     <td>{p.category.productClass?.name && <small>{p.category.productClass.name} › </small>}{p.category.name}<br /><small>{segmentLabel(p.ageGroup, p.gender)}</small></td>
                     <td>{formatPrice(p.price)}{p.compareAtPrice && <><br /><small className="strike">{formatPrice(p.compareAtPrice)}</small></>}</td>
@@ -272,7 +282,31 @@ function ProductForm({ initial, categories, brands, classes, onCatalogChange, on
   }
 
   function setVariant(index: number, patch: Partial<VariantRow>) {
-    set("variants", f.variants.map((v, i) => (i === index ? { ...v, ...patch } : v)));
+    setF((cur) => {
+      const variants = cur.variants.map((v, i) => (i === index ? { ...v, ...patch } : v));
+      // Mudar o nome da cor leva as fotos junto, desde que nenhuma outra linha ainda use o nome antigo.
+      const before = cur.variants[index]!.color.trim();
+      const after = (patch.color ?? before).trim();
+      let colorImages = cur.colorImages;
+      if (before && after && before !== after && colorImages[before] && !colorImages[after] && !variants.some((v) => v.color.trim() === before)) {
+        const { [before]: moved, ...rest } = colorImages;
+        colorImages = { ...rest, [after]: moved! };
+      }
+      return { ...cur, variants, colorImages };
+    });
+  }
+
+  /** Sobe ou desce uma cor: as linhas de cada cor andam juntas, e a primeira cor é a que a página do produto abre. */
+  function moveColor(name: string, direction: -1 | 1) {
+    setF((cur) => {
+      const order = colorsOfVariants(cur.variants);
+      const from = order.indexOf(name);
+      const to = from + direction;
+      if (from < 0 || to < 0 || to >= order.length) return cur;
+      [order[from], order[to]] = [order[to]!, order[from]!];
+      const rank = (v: VariantRow) => order.indexOf(v.color.trim());
+      return { ...cur, variants: [...cur.variants].sort((a, b) => rank(a) - rank(b)) };
+    });
   }
 
   /** Cruza cores × numerações e acrescenta só as combinações que ainda não existem. */
@@ -396,8 +430,9 @@ function ProductForm({ initial, categories, brands, classes, onCatalogChange, on
       </fieldset>
 
       <fieldset>
-        <legend>Fotos</legend>
-        <div className="span-2"><ImageGallery value={f.images} onChange={(urls) => set("images", urls)} /></div>
+        <legend>Fotos gerais</legend>
+        <div className="span-2"><ImageGallery value={f.images} onChange={(urls) => set("images", urls)} label="Fotos gerais (a primeira é a principal)" /></div>
+        <p className="span-2 admin-hint">Usadas quando uma cor ainda não tem fotos próprias. Com as fotos de cada cor cadastradas (logo abaixo das variações), a loja mostra as da cor escolhida.</p>
       </fieldset>
 
       <fieldset>
@@ -437,6 +472,30 @@ function ProductForm({ initial, categories, brands, classes, onCatalogChange, on
         )}
         <p className="span-2 admin-hint">O SKU é gerado sozinho (produto-cor-número) e acompanha o nome, a cor e a numeração. Só digite um código se a loja já usar um próprio; apague o campo para voltar ao automático. Variações já vendidas não podem ser removidas; zere o estoque delas.</p>
       </fieldset>
+
+      {colorsOfVariants(f.variants).length > 0 && (
+        <fieldset>
+          <legend>Fotos por cor (até {MAX_COLOR_PHOTOS} por cor)</legend>
+          <p className="span-2 admin-hint">A primeira cor da lista é a que abre a página do produto na loja. Use ↑ ↓ para mudar a ordem das cores. Cor sem fotos usa as fotos gerais.</p>
+          {colorsOfVariants(f.variants).map((name, i, all) => (
+            <div key={name} className="span-2 color-photos">
+              <div className="color-photos-head">
+                <strong>{i === 0 ? `${name} · abre a página` : name}</strong>
+                <span className="move">
+                  <button type="button" aria-label={`Subir a cor ${name}`} disabled={i === 0} onClick={() => moveColor(name, -1)}>↑</button>
+                  <button type="button" aria-label={`Descer a cor ${name}`} disabled={i === all.length - 1} onClick={() => moveColor(name, 1)}>↓</button>
+                </span>
+              </div>
+              <ImageGallery
+                value={f.colorImages[name] ?? []}
+                max={MAX_COLOR_PHOTOS}
+                label={`Fotos de ${name}`}
+                onChange={(urls) => setF((cur) => ({ ...cur, colorImages: { ...cur.colorImages, [name]: urls } }))}
+              />
+            </div>
+          ))}
+        </fieldset>
+      )}
 
       <Notice error={error} />
       <div className="form-actions">

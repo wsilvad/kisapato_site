@@ -257,6 +257,8 @@ model Product {
   /// Legado (ver `Audience.products`); a loja usa `ageGroup` e `gender`.
   audiences        Audience[]
   variants         ProductVariant[]
+  /// Fotos de cada cor (até 4); a ordem das cores define a primeira, que abre a página do produto.
+  colors           ProductColor[]
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @updatedAt
 
@@ -264,6 +266,24 @@ model Product {
   @@index([brandId])
   @@index([ageGroup, gender])
   @@map("products")
+}
+
+/// Cor de um produto (o "filho" do produto pai) com as fotos dela. As numerações dessa cor são as `ProductVariant`
+/// com o mesmo nome em `color`. Sem fotos aqui, a cor usa as fotos gerais do produto (`Product.images`).
+model ProductColor {
+  id        String   @id @default(uuid())
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  name      String
+  /// Posição da cor no produto: a de menor número é a primeira.
+  position  Int      @default(0)
+  /// URLs das fotos da cor (no máximo 4); a primeira é a principal.
+  images    String[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([productId, name])
+  @@map("product_colors")
 }
 
 /// Combinação de numeração + cor, com estoque próprio.

@@ -75,9 +75,18 @@ export interface Product {
   /** Custo de compra (só o admin vê); base da margem nos indicadores. */
   costPrice?: string | null;
   badge?: "LANCAMENTO" | "PROMOCAO" | "DESTAQUE" | null;
+  /** Fotos da primeira cor (vitrine, cards e sacola); no admin, as fotos gerais do produto. */
   images: string[];
+  /** Fotos de cada cor, na ordem da loja (a primeira abre a página do produto). */
+  colors?: ProductColor[];
   category: Category;
   variants?: ProductVariant[];
+}
+
+/** Cor do produto com as suas fotos (até 4). */
+export interface ProductColor {
+  name: string;
+  images: string[];
 }
 
 /** Opção de filtro com a quantidade de produtos que ela traz. */

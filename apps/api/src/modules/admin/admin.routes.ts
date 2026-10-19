@@ -8,6 +8,7 @@ import { recordMovement } from "../stock/stock.service.js";
 import { stockRouter } from "../stock/stock.routes.js";
 import { reportsRouter } from "../reports/reports.routes.js";
 import { fulfillmentRouter } from "../fulfillment/fulfillment.routes.js";
+import { MAX_COLOR_PHOTOS } from "../products/colors.js";
 import { genderWhere } from "../products/segment.js";
 
 export const adminRouter = Router();
@@ -201,9 +202,22 @@ const productBody = z.object({
   ageGroup: z.enum(["ADULTO", "INFANTIL"]).default("ADULTO"),
   gender: z.enum(["FEMININO", "MASCULINO", "UNISSEX"]).default("UNISSEX"),
   variants: z.array(variantBody).default([]),
+  /** Fotos de cada cor (até 4); a ordem da lista é a ordem das cores na loja, e a primeira abre a página do produto. */
+  colors: z
+    .array(z.object({ name: z.string().trim().min(1), images: z.array(z.string().min(1)).max(MAX_COLOR_PHOTOS, `Cada cor aceita no máximo ${MAX_COLOR_PHOTOS} fotos.`).default([]) }))
+    .default([]),
 });
 
-const productInclude = { brand: true, category: { include: { productClass: true } }, variants: true };
+const productInclude = { brand: true, category: { include: { productClass: true } }, variants: true, colors: { orderBy: { position: "asc" as const } } };
+
+/** Só cores que existem nas numerações do produto entram, na ordem em que vieram (sem repetir o nome). */
+function colorRows(colors: z.infer<typeof productBody>["colors"], variants: { color: string }[]) {
+  const valid = new Set(variants.map((v) => v.color));
+  const seen = new Set<string>();
+  return colors
+    .filter((c) => valid.has(c.name) && !seen.has(c.name) && seen.add(c.name))
+    .map((c, position) => ({ name: c.name, position, images: c.images }));
+}
 /** No admin o produto vem com o custo (omitido por padrão no cliente do Prisma). */
 const withCost = { omit: { costPrice: false } } as const;
 
@@ -230,10 +244,10 @@ adminRouter.get("/products/:id", async (req, res) => {
   res.json(product);
 });
 adminRouter.post("/products", async (req, res) => {
-  const { variants, ...data } = productBody.parse(req.body);
+  const { variants, colors, ...data } = productBody.parse(req.body);
   const product = await prisma.$transaction(async (tx) => {
     const created = await tx.product.create({
-      data: { ...data, variants: { create: withSkus(data.slug, variants) } },
+      data: { ...data, variants: { create: withSkus(data.slug, variants) }, colors: { create: colorRows(colors, variants) } },
       ...withCost,
       include: productInclude,
     });
@@ -249,8 +263,9 @@ adminRouter.post("/products", async (req, res) => {
  * removidas, salvo as já vendidas, e as demais mantêm o id para não quebrar sacolas em aberto.
  */
 adminRouter.put("/products/:id", async (req, res) => {
-  const { variants: rawVariants, ...data } = productBody.parse(req.body);
+  const { variants: rawVariants, colors: rawColors, ...data } = productBody.parse(req.body);
   const variants = withSkus(data.slug, rawVariants);
+  const colors = colorRows(rawColors, variants);
   const id = req.params.id;
   const kept = variants.map((v) => ({ size: v.size, color: v.color }));
   const product = await prisma.$transaction(async (tx) => {
@@ -267,6 +282,14 @@ adminRouter.put("/products/:id", async (req, res) => {
             where: { productId_size_color: { productId: id, size: v.size, color: v.color } },
             update: { sku: v.sku, stock: v.stock },
             create: v,
+          })),
+        },
+        colors: {
+          deleteMany: { name: { notIn: colors.map((c) => c.name) } },
+          upsert: colors.map((c) => ({
+            where: { productId_name: { productId: id, name: c.name } },
+            update: { position: c.position, images: c.images },
+            create: c,
           })),
         },
       },
