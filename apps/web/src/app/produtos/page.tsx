@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
 type Params = { categoria?: string; faixa?: string; genero?: string; publico?: string; marca?: string; cor?: string; numeracao?: string; min?: string; max?: string; ordem?: string; pagina?: string; selo?: string; busca?: string };
 
 const SELO_TITLE: Record<string, string> = { lancamento: "Lançamentos", promocao: "Promoções", destaque: "Destaques" };
-const SORTS = ["novidades", "menor-preco", "maior-preco", "nome"];
+const SORTS = ["relevancia", "novidades", "menor-preco", "maior-preco", "nome"];
 const PAGE_SIZE = 24;
 
 const list = (value?: string) => (value ?? "").split(",").map((x) => x.trim()).filter(Boolean);
@@ -33,7 +33,9 @@ export default async function ProdutosPage({ searchParams }: { searchParams: Pro
   const params = await searchParams;
   if (params.publico) redirect(await legacyAudienceUrl(params));
   const selo = params.selo && params.selo in SELO_TITLE ? params.selo : undefined;
-  const ordem = params.ordem && SORTS.includes(params.ordem) ? params.ordem : "novidades";
+  // com busca, a ordem padrão é a relevância (o que mais se parece com o que foi digitado primeiro)
+  const defaultOrdem = params.busca ? "relevancia" : "novidades";
+  const ordem = params.ordem && SORTS.includes(params.ordem) && (params.ordem !== "relevancia" || params.busca) ? params.ordem : defaultOrdem;
   const pagina = Math.max(1, Number.parseInt(params.pagina ?? "1", 10) || 1);
   const state: FilterState = {
     categoria: list(params.categoria),
@@ -85,13 +87,16 @@ export default async function ProdutosPage({ searchParams }: { searchParams: Pro
   return (
     <div className="page">
       <h1 className="page-title">{title}</h1>
+      {params.busca && result?.searchMode === "similar" && result.items.length > 0 && (
+        <p className="search-similar">Não encontramos exatamente “{params.busca}”. Mostrando os produtos mais parecidos.</p>
+      )}
 
       <ProductFilters facets={facets} state={state} fixed={fixed} ordem={ordem} total={result?.total ?? 0} />
 
       {!result ? (
         <p>Não foi possível carregar os produtos. Tente novamente em instantes.</p>
       ) : result.items.length === 0 ? (
-        <p className="shop-empty">Nenhum produto encontrado com esses filtros.</p>
+        <p className="shop-empty">{params.busca ? `Nenhum produto encontrado para “${params.busca}”. Tente outra palavra, a marca, a categoria ou a referência.` : "Nenhum produto encontrado com esses filtros."}</p>
       ) : (
         <div className="product-grid">
           {result.items.map((product) => (

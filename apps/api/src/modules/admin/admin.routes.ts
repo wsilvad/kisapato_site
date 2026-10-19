@@ -2,7 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../../lib/prisma.js";
 import { AppError } from "../../lib/errors.js";
-import { requireAdmin } from "../../middlewares/auth.js";
+import { requireAdmin, requirePanelPermission } from "../../middlewares/auth.js";
 import { getSiteSettings, saveSiteSettings } from "../settings/settings.service.js";
 import { recordMovement } from "../stock/stock.service.js";
 import { stockRouter } from "../stock/stock.routes.js";
@@ -10,12 +10,14 @@ import { reportsRouter } from "../reports/reports.routes.js";
 import { fulfillmentRouter } from "../fulfillment/fulfillment.routes.js";
 import { MAX_COLOR_PHOTOS } from "../products/colors.js";
 import { genderWhere } from "../products/segment.js";
+import { usersRouter } from "../users/users.routes.js";
 
 export const adminRouter = Router();
-adminRouter.use(requireAdmin);
+adminRouter.use(requireAdmin, requirePanelPermission);
 adminRouter.use("/stock", stockRouter);
 adminRouter.use("/reports", reportsRouter);
 adminRouter.use("/orders", fulfillmentRouter);
+adminRouter.use("/users", usersRouter);
 
 const slug = z.string().trim().min(1).regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, "Use letras minúsculas, números e hífen");
 const money = z.coerce.number().nonnegative().transform((v) => v.toFixed(2));
@@ -180,7 +182,10 @@ adminRouter.delete("/categories/:id", async (req, res) => {
 const variantBody = z.object({
   /** Opcional: sem SKU, a API monta slug-cor-numeração. */
   sku: z.string().trim().optional(),
-  size: z.coerce.number().int().positive(),
+  /** Número da numeração (34…) ou posição da grade (Único = 0, P = 2…). */
+  size: z.coerce.number().int().min(0),
+  /** Rótulo da grade de confecção ("P", "Único"…); vazio na numeração. */
+  sizeLabel: z.string().trim().max(20).nullish(),
   color: z.string().trim().min(1),
   stock: z.coerce.number().int().min(0),
 });
@@ -199,12 +204,14 @@ const productBody = z.object({
   images: z.array(z.string()).default([]),
   active: z.boolean().default(true),
   categoryId: z.string().min(1),
+  /** Como as numerações são lidas: NUMERACAO (34, 35…) ou CONFECCAO (P, M, G, Único…). */
+  sizeScheme: z.enum(["NUMERACAO", "CONFECCAO"]).default("NUMERACAO"),
   ageGroup: z.enum(["ADULTO", "INFANTIL"]).default("ADULTO"),
   gender: z.enum(["FEMININO", "MASCULINO", "UNISSEX"]).default("UNISSEX"),
   variants: z.array(variantBody).default([]),
   /** Fotos de cada cor (até 4); a ordem da lista é a ordem das cores na loja, e a primeira abre a página do produto. */
   colors: z
-    .array(z.object({ name: z.string().trim().min(1), images: z.array(z.string().min(1)).max(MAX_COLOR_PHOTOS, `Cada cor aceita no máximo ${MAX_COLOR_PHOTOS} fotos.`).default([]) }))
+    .array(z.object({ name: z.string().trim().min(1), price: money.nullish(), compareAtPrice: money.nullish(), images: z.array(z.string().min(1)).max(MAX_COLOR_PHOTOS, `Cada cor aceita no máximo ${MAX_COLOR_PHOTOS} fotos.`).default([]) }))
     .default([]),
 });
 
@@ -216,7 +223,7 @@ function colorRows(colors: z.infer<typeof productBody>["colors"], variants: { co
   const seen = new Set<string>();
   return colors
     .filter((c) => valid.has(c.name) && !seen.has(c.name) && seen.add(c.name))
-    .map((c, position) => ({ name: c.name, position, images: c.images }));
+    .map((c, position) => ({ name: c.name, position, images: c.images, price: c.price ?? null, compareAtPrice: c.price != null ? (c.compareAtPrice ?? null) : null }));
 }
 /** No admin o produto vem com o custo (omitido por padrão no cliente do Prisma). */
 const withCost = { omit: { costPrice: false } } as const;
@@ -280,7 +287,7 @@ adminRouter.put("/products/:id", async (req, res) => {
         variants: {
           upsert: variants.map((v) => ({
             where: { productId_size_color: { productId: id, size: v.size, color: v.color } },
-            update: { sku: v.sku, stock: v.stock },
+            update: { sku: v.sku, stock: v.stock, sizeLabel: v.sizeLabel ?? null },
             create: v,
           })),
         },
@@ -288,7 +295,7 @@ adminRouter.put("/products/:id", async (req, res) => {
           deleteMany: { name: { notIn: colors.map((c) => c.name) } },
           upsert: colors.map((c) => ({
             where: { productId_name: { productId: id, name: c.name } },
-            update: { position: c.position, images: c.images },
+            update: { position: c.position, images: c.images, price: c.price, compareAtPrice: c.compareAtPrice },
             create: c,
           })),
         },
@@ -413,6 +420,18 @@ adminRouter.get("/settings", async (_req, res) => {
 });
 adminRouter.put("/settings", async (req, res) => {
   res.json(await saveSiteSettings(req.body));
+});
+
+/* Páginas do site (permissão "paginas"): lista e edição de título/texto de uma página existente; não cria nem exclui. */
+adminRouter.get("/pages", async (_req, res) => {
+  res.json((await getSiteSettings()).pages);
+});
+adminRouter.put("/pages/:slug", async (req, res) => {
+  const body = z.object({ title: z.string().trim().min(1).max(80), body: z.string().max(20000) }).parse(req.body);
+  const settings = await getSiteSettings();
+  if (!settings.pages.some((p) => p.slug === req.params.slug)) throw new AppError("Página não encontrada", 404);
+  const saved = await saveSiteSettings({ ...settings, pages: settings.pages.map((p) => (p.slug === req.params.slug ? { ...p, ...body } : p)) });
+  res.json(saved.pages.find((p) => p.slug === req.params.slug));
 });
 
 /* Resumo do painel */

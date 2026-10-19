@@ -67,8 +67,12 @@ ordersRouter.post("/", async (req, res) => {
         data: { stock: { decrement: quantity } },
       });
       if (updated.count === 0) throw new AppError(`Sem estoque de ${variant.product.name} (${variant.color}, ${variant.size})`, 409);
-      total += Number(variant.product.price) * quantity;
-      lines.push({ variantId, quantity, unitPrice: variant.product.price.toString(), unitCost: variant.product.costPrice?.toString() ?? null });
+      // preço e custo são da cor (item do ERP) quando ela tem os próprios; senão valem os do produto
+      const color = await tx.productColor.findUnique({ where: { productId_name: { productId: variant.productId, name: variant.color } }, omit: { costPrice: false } });
+      const unitPrice = color?.price ?? variant.product.price;
+      const unitCost = color?.costPrice ?? variant.product.costPrice;
+      total += Number(unitPrice) * quantity;
+      lines.push({ variantId, quantity, unitPrice: unitPrice.toString(), unitCost: unitCost?.toString() ?? null });
       balances.push(variant.stock - quantity);
     }
 

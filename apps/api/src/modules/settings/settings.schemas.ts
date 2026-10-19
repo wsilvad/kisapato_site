@@ -84,6 +84,104 @@ export const defaultPages = [
       "Você também pode retirar o pedido na loja, sem custo: avisamos assim que ele estiver pronto.",
     ].join("\n\n"),
   },
+  {
+    slug: "fale-conosco",
+    title: "Fale conosco",
+    body: [
+      "Estamos aqui para ajudar com seu pedido, trocas, tamanhos ou qualquer dúvida sobre os produtos. O atendimento é feito de segunda a sábado, em horário comercial, e respondemos o mais rápido possível.",
+      "## Pedidos e trocas",
+      "Para falar de um pedido, informe o número dele. Você acompanha tudo em Minha conta → Meus pedidos. Para trocas e devoluções, veja a página Política de troca.",
+      "## Na loja",
+      "Prefere conversar pessoalmente? Venha até a nossa loja: o atendimento presencial resolve trocas, retiradas e dúvidas na hora.",
+    ].join("\n\n"),
+  },
+  {
+    slug: "perguntas-frequentes",
+    title: "Perguntas frequentes",
+    // Cada "## Pergunta" vira um item suspenso; o texto abaixo dela é a resposta.
+    body: [
+      "## Qual é o prazo de entrega?",
+      "O prazo depende da sua região e aparece no carrinho assim que você informa o CEP. Ele começa a contar depois da confirmação do pagamento. Veja os valores e prazos por região em Políticas de entrega.",
+      "## Posso retirar o pedido na loja?",
+      "Sim, sem custo. Escolha a retirada na loja ao finalizar a compra e avisamos assim que o pedido estiver pronto.",
+      "## Quais são as formas de pagamento?",
+      "Cartão de crédito em até 6x sem juros, Pix e boleto bancário.",
+      "## Como funcionam as trocas e devoluções?",
+      "A primeira troca é grátis, em até 30 dias após o recebimento, com o produto sem sinais de uso, na embalagem original e com etiqueta. Você também pode se arrepender da compra em até 7 dias corridos. Os detalhes estão na página Política de troca.",
+      "## Como escolho o tamanho certo?",
+      "Na página do produto, escolha a cor e depois a numeração: os tamanhos sem estoque aparecem riscados. Em caso de dúvida, fale conosco ou passe na loja para experimentar.",
+      "## Os produtos são originais?",
+      "Sim. Trabalhamos com produtos originais, das melhores marcas, selecionados com cuidado pela nossa equipe.",
+      "## Como acompanho meu pedido?",
+      "Entre na sua conta e abra Meus pedidos. Lá você vê o andamento e o status de cada compra.",
+      "## Esqueci minha senha. E agora?",
+      "Na tela de entrar, escolha a recuperação de senha e informe seu e-mail ou o telefone cadastrado: enviamos um código para você criar uma senha nova.",
+    ].join("\n\n"),
+  },
+  {
+    slug: "nossas-lojas",
+    title: "Nossas lojas",
+    body: [
+      "A Ki Sapato é uma loja de calçados de Santo Antônio da Patrulha, no Rio Grande do Sul, com modelos femininos, masculinos e infantis das marcas que você confia.",
+      "Venha conhecer as novidades, experimentar os modelos e ser atendido pessoalmente pela nossa equipe. Retirar o pedido na loja é sem custo.",
+    ].join("\n\n"),
+  },
+  {
+    slug: "termos-de-uso",
+    title: "Termos de uso",
+    body: [
+      "Estes termos regulam o uso do site da Ki Sapato e as compras feitas nele. Ao navegar ou comprar, você concorda com as regras abaixo.",
+      "## Cadastro e conta",
+      "Para comprar é preciso criar uma conta com nome completo, e-mail, telefone, CPF e senha forte. Os dados devem ser verdadeiros e atuais, e a senha é pessoal: não a compartilhe. Você pode ativar a verificação em duas etapas para proteger sua conta.",
+      "## Produtos, preços e estoque",
+      "As fotos e descrições são ilustrativas e podem ter pequenas variações de cor conforme a tela. Preços e estoque podem mudar sem aviso, e o preço válido é o exibido no fechamento do pedido. Em caso de erro evidente de preço ou de falta de estoque, entramos em contato para ajustar ou cancelar o pedido.",
+      "## Pagamento",
+      "Aceitamos as formas de pagamento mostradas no site. O pedido só é preparado depois da confirmação do pagamento. Não guardamos os dados completos do seu cartão: eles são tratados pelo meio de pagamento.",
+      "## Entrega, trocas e garantia",
+      "Prazos e valores de entrega estão na página Políticas de entrega. Trocas, devoluções e o direito de arrependimento seguem a página Política de troca, e a garantia contra defeitos segue a Política de garantia e conservação, sempre de acordo com o Código de Defesa do Consumidor.",
+      "## Uso do site e propriedade intelectual",
+      "Os textos, fotos, marcas e o layout do site pertencem à Ki Sapato e aos seus parceiros. É proibido copiar ou usar esse conteúdo sem autorização, e também tentar acessar áreas restritas, burlar a segurança ou usar o site para fins ilegais.",
+      "## Responsabilidades",
+      "Nos esforçamos para manter o site disponível, mas podem ocorrer interrupções para manutenção ou por falhas fora do nosso controle. Não nos responsabilizamos por links de terceiros nem por uso indevido da sua conta por compartilhamento de senha.",
+      "## Alterações e contato",
+      "Podemos atualizar estes termos a qualquer momento; a versão em vigor é a publicada nesta página. Dúvidas? Fale conosco.",
+    ].join("\n\n"),
+  },
+  {
+    slug: "politica-de-privacidade",
+    title: "Política de privacidade",
+    body: [
+      "A Ki Sapato (CNPJ 51.326.310/0001-31) respeita a sua privacidade e trata seus dados pessoais conforme a Lei Geral de Proteção de Dados (LGPD, Lei 13.709/2018).",
+      "## Quais dados coletamos",
+      "Nome completo, e-mail, telefone, CPF, endereços de entrega, histórico de pedidos e favoritos. Para pagamentos com cartão, apenas um código seguro (token) fornecido pelo meio de pagamento é guardado, nunca o número completo do cartão. Também usamos informações técnicas básicas de navegação para o site funcionar e ser protegido.",
+      "## Para que usamos",
+      "Criar e proteger sua conta, processar e entregar pedidos, emitir nota fiscal (por isso pedimos o CPF), confirmar e-mail e telefone, recuperar sua senha, atender você e cumprir obrigações legais.",
+      "## Com quem compartilhamos",
+      "Somente o necessário para concluir a sua compra: meios de pagamento, transportadoras e correios, serviços de e-mail e mensagens que enviam seus códigos e avisos, e o sistema de gestão da loja. Não vendemos seus dados.",
+      "## Segurança",
+      "Suas senhas são guardadas de forma criptografada e você pode ativar a verificação em duas etapas. Mesmo assim, nenhum sistema é totalmente invulnerável: se notar algo estranho na sua conta, fale conosco.",
+      "## Por quanto tempo guardamos",
+      "Pelo tempo necessário para as finalidades acima e para cumprir prazos legais, fiscais e de defesa do consumidor. Depois disso, os dados são apagados ou anonimizados.",
+      "## Seus direitos",
+      "Você pode pedir a confirmação do tratamento, o acesso, a correção, a anonimização ou a exclusão dos seus dados, a portabilidade e a revogação de consentimentos. Parte dos dados pode ser alterada direto em Minha conta; para o restante, fale conosco.",
+      "## Cookies e atualizações",
+      "Usamos apenas os cookies e armazenamentos do navegador necessários para manter você conectado e guardar sacola e favoritos. Esta política pode ser atualizada, e a versão em vigor é a publicada aqui.",
+    ].join("\n\n"),
+  },
+  {
+    slug: "politica-de-garantia-e-conservacao",
+    title: "Política de garantia e conservação",
+    body: [
+      "## Garantia",
+      "Todos os produtos têm garantia legal contra defeitos de fabricação de 90 dias, contados do recebimento, conforme o Código de Defesa do Consumidor. Se o produto apresentar defeito, entre em contato com a nossa equipe dentro desse prazo, informando o número do pedido e, se possível, enviando fotos. Analisamos o caso e, confirmado o defeito, fazemos a troca ou a solução prevista em lei.",
+      "## O que a garantia não cobre",
+      "Desgaste natural pelo uso, danos causados por mau uso, lavagem ou limpeza inadequadas, exposição excessiva a calor, umidade ou produtos químicos, e alterações feitas por terceiros no produto.",
+      "## Conservação de calçados",
+      "- Guarde em local arejado, longe do sol e da umidade, de preferência com enchimento para manter o formato.\\n- Limpe couro e sintético com pano levemente úmido e hidrate o couro de tempos em tempos.\\n- Escove camurça e nobuck com escova própria, sem molhar.\\n- Alterne os pares: dar descanso ao calçado prolonga a vida útil.",
+      "## Conservação de bolsas e acessórios",
+      "- Evite excesso de peso e contato com superfícies ásperas.\\n- Guarde na embalagem ou em capa de tecido, longe do sol.\\n- Limpe com pano macio; não use produtos abrasivos.",
+    ].join("\n\n"),
+  },
   { slug: "blog", title: "Blog", body: "" },
   { slug: "avaliacoes", title: "Avaliação dos clientes", body: "" },
 ];
@@ -127,10 +225,14 @@ export const siteSettingsSchema = z.object({
       phone: text(60),
       hours: text(120),
       cnpj: text(30),
+      /** Número do WhatsApp com DDI e DDD (ex.: +5551998113318): botão flutuante da loja e link no Fale conosco. Vazio = sem botão. */
+      whatsapp: text(30),
+      /** Coordenadas da loja no mapa ("latitude,longitude"), para o mapa de Nossas lojas. Vazio = sem mapa. */
+      mapCoords: text(60),
       /** Bandeiras e meios de pagamento exibidos no rodapé (logos), na ordem escolhida. */
       paymentMethods: z.array(z.enum(PAYMENT_METHODS)).max(PAYMENT_METHODS.length).default(() => [...DEFAULT_PAYMENT_METHODS]),
     })
-    .default({ columns: [], storeTitle: "Nossas lojas", address: "", phone: "", hours: "", cnpj: "", paymentMethods: [...DEFAULT_PAYMENT_METHODS] }),
+    .default({ columns: [], storeTitle: "Nossas lojas", address: "", phone: "", hours: "", cnpj: "", whatsapp: "", mapCoords: "", paymentMethods: [...DEFAULT_PAYMENT_METHODS] }),
 });
 
 export type SiteSettings = z.infer<typeof siteSettingsSchema>;
@@ -161,22 +263,35 @@ export const defaultSiteSettings: SiteSettings = {
   ],
   pages: defaultPages,
   footer: {
-    // “Ajuda” (conta, pedidos, favoritos, trocas, entrega) agora fica no menu do ícone de perfil do cabeçalho.
+    // “Ajuda” traz o atendimento (fale conosco e perguntas frequentes); conta, pedidos e favoritos ficam no menu do ícone de perfil.
     columns: [
+      {
+        title: "Ajuda",
+        links: [
+          { label: "Fale conosco", url: "/institucional/fale-conosco" },
+          { label: "Perguntas frequentes", url: "/institucional/perguntas-frequentes" },
+        ],
+      },
       {
         title: "Institucional",
         links: [
           { label: "Sobre a Ki Sapato", url: "/institucional/quem-somos" },
-          { label: "Blog", url: "/institucional/blog" },
-          { label: "Avaliação dos clientes", url: "/institucional/avaliacoes" },
+          { label: "Política de troca", url: "/institucional/trocas-e-devolucoes" },
+          { label: "Nossas lojas", url: "/institucional/nossas-lojas" },
+          { label: "Termos de uso", url: "/institucional/termos-de-uso" },
+          { label: "Política de privacidade", url: "/institucional/politica-de-privacidade" },
+          { label: "Política de garantia e conservação", url: "/institucional/politica-de-garantia-e-conservacao" },
         ],
       },
     ],
     storeTitle: "Nossas lojas",
-    address: "Santo Antônio da Patrulha, RS",
-    phone: "",
+    address: "Av. Cel. Victor Villa Verde, 300 - Sala 06 | Pátio Urbano - Santo Antônio da Patrulha, RS",
+    phone: "(51) 99811-3318",
     hours: "",
     cnpj: "51.326.310/0001-31",
+    whatsapp: "+5551998113318",
+    // Pátio Urbano (Av. Cel. Victor Villa Verde, 300), pelo link do Google Maps da loja
+    mapCoords: "-29.830261,-50.5242959",
     paymentMethods: [...DEFAULT_PAYMENT_METHODS],
   },
 };

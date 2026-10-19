@@ -32,7 +32,8 @@ export const productFiltersQuery = z.object({
 export const listProductsQuery = productFiltersQuery.extend({
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(50).default(12),
-  sort: z.enum(["novidades", "menor-preco", "maior-preco", "nome"]).default("novidades"),
+  /** Sem ordem escolhida: com busca, os mais relevantes primeiro; sem busca, as novidades. */
+  sort: z.enum(["relevancia", "novidades", "menor-preco", "maior-preco", "nome"]).optional(),
 });
 
 export type ProductFilters = z.infer<typeof productFiltersQuery>;

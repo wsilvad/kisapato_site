@@ -39,7 +39,7 @@ export function ProductCard({ product }: { product: Product }) {
               <span className="price price-sale">{formatPrice(product.price)}</span>
             </>
           ) : (
-            <span className="price">{formatPrice(product.price)}</span>
+            <span className="price">{product.priceFrom && <small className="price-from">a partir de </small>}{formatPrice(product.price)}</span>
           )}
         </div>
         <span className="card-installments">{installmentText(product.price)}</span>

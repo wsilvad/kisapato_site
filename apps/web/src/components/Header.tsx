@@ -12,20 +12,19 @@ import { SearchBox } from "@/components/SearchBox";
 import { prefetchSegments } from "@/components/useSegments";
 import { useCart } from "@/lib/cart";
 import { useFavorites } from "@/lib/favorites";
-import type { SiteSettings } from "@/types/product";
+import type { Category, SiteSettings } from "@/types/product";
 
 /**
- * Linha do menu: o menu principal (com a escolha do público) e, ao lado, as categorias da seleção atual. A página
- * escolhida fica sublinhada.
+ * Linha do menu: o menu principal (com a escolha do público) e, ao lado, todas as categorias, iguais em todas as páginas
+ * (como na página inicial). Na vitrine, a categoria aberta fica sublinhada.
  */
-function NavRow({ nav }: { nav: SiteSettings["nav"] }) {
+function NavRow({ nav, categories }: { nav: SiteSettings["nav"]; categories?: Category[] }) {
   const pathname = usePathname();
   const params = useSearchParams();
   const selo = params.get("selo") ?? "";
   const inShop = pathname.startsWith("/produtos");
-  const home = pathname === "/";
-  // Na página inicial nada fica marcado como "atual" e as categorias não herdam seleção.
-  const get = (key: string) => (home ? "" : (params.get(key) ?? ""));
+  // Categoria aberta na vitrine (para sublinhar); fora dela nada fica marcado.
+  const currentCategory = inShop ? params.get("categoria") : null;
   return (
     <nav className="sh-nav" aria-label="Principal">
       {nav.map((link) => {
@@ -41,7 +40,7 @@ function NavRow({ nav }: { nav: SiteSettings["nav"] }) {
           </Link>
         );
       })}
-      {(inShop || home) && <CategoryLinks selo={get("selo")} faixa={get("faixa")} genero={get("genero")} active={home ? null : get("categoria")} />}
+      <CategoryLinks selo="" faixa="" genero="" active={currentCategory} initial={categories} />
     </nav>
   );
 }
@@ -82,7 +81,7 @@ const Icon = {
  * menu (com as categorias) de ponta a ponta. Na página inicial fica transparente por cima da foto do banner e vira branco ao rolar. No
  * celular vira ☰ Menu + logo + busca e sacola, com o menu completo num painel lateral.
  */
-export function Header({ topbar, nav, social, pages }: Pick<SiteSettings, "topbar" | "nav" | "social" | "pages">) {
+export function Header({ topbar, nav, social, pages, categories }: Pick<SiteSettings, "topbar" | "nav" | "social" | "pages"> & { /** Categorias ativas, carregadas no servidor. */ categories?: Category[] }) {
   const { count: cartCount, openDrawer } = useCart();
   const { slugs } = useFavorites();
   const pathname = usePathname();
@@ -151,7 +150,7 @@ export function Header({ topbar, nav, social, pages }: Pick<SiteSettings, "topba
 
       <div className="sh-navbar">
         <Suspense fallback={<nav className="sh-nav" aria-label="Principal" />}>
-          <NavRow nav={nav} />
+          <NavRow nav={nav} categories={categories} />
         </Suspense>
       </div>
 

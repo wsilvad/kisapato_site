@@ -8,6 +8,8 @@ export interface CartLine {
   name: string;
   image?: string;
   size: number;
+  /** Rótulo mostrado no lugar do número (grade de confecção). */
+  sizeLabel?: string | null;
   color: string;
   price: string;
   quantity: number;

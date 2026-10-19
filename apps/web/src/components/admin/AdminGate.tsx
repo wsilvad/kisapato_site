@@ -29,7 +29,7 @@ export function AdminGate({ children }: { children: React.ReactNode }) {
     api
       .adminMe()
       .then((user) => {
-        if (user.role === "ADMIN") setState({ status: "in", user });
+        if (user.role === "ADMIN" && (user.permissions?.length ?? 0) > 0) setState({ status: "in", user });
         else throw new Error("sem acesso");
       })
       .catch(() => {
@@ -59,7 +59,7 @@ export function AdminGate({ children }: { children: React.ReactNode }) {
 
   return (
     <AdminShell
-      userName={state.user.name ?? state.user.email}
+      permissions={state.user.permissions ?? []}
       onSignOut={() => {
         clearAdminToken();
         setState({ status: "out" });

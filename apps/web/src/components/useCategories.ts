@@ -10,12 +10,15 @@ const cache = new Map<string, Category[]>();
  * Categorias que têm produtos na seleção atual (selo, faixa etária e gênero), para nenhum link do menu levar a
  * uma página vazia. Devolve `null` enquanto carrega; cada seleção fica em cache.
  */
-export function useCategories(selo: string, faixa: string, genero: string) {
+export function useCategories(selo: string, faixa: string, genero: string, initial?: Category[]) {
   const key = `${selo}|${faixa}|${genero}`;
-  const [categories, setCategories] = useState<Category[] | null>(cache.get(key) ?? null);
+  // `initial` (lista completa, sem seleção) vem pronta do servidor: o menu já aparece com as categorias, sem piscar.
+  const seed = key === "||" ? initial : undefined;
+  const [categories, setCategories] = useState<Category[] | null>(cache.get(key) ?? seed ?? null);
 
   useEffect(() => {
     let cancelled = false;
+    if (seed && !cache.has(key)) cache.set(key, seed);
     const cached = cache.get(key);
     if (cached) {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- troca de seleção já em cache
@@ -32,7 +35,7 @@ export function useCategories(selo: string, faixa: string, genero: string) {
     return () => {
       cancelled = true;
     };
-  }, [key, selo, faixa, genero]);
+  }, [key, selo, faixa, genero, seed]);
 
   return categories;
 }

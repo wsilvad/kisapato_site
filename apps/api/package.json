@@ -15,7 +15,10 @@
     "prisma:studio": "prisma studio",
     "uploads:optimize": "tsx scripts/optimize-uploads.ts",
     "test": "tsx --test test/*.test.ts",
-    "mail:test": "tsx scripts/mail-test.ts"
+    "mail:test": "tsx scripts/mail-test.ts",
+    "erp:import": "tsx scripts/erp-import.ts",
+    "photos:brand": "tsx scripts/brand-photos.ts",
+    "site:menus": "tsx scripts/site-menus.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.10.0",

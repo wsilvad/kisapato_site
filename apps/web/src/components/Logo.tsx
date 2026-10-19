@@ -1,12 +1,12 @@
 /**
- * Marca da loja: quadrado branco com "KI" e "SAPATO" ao lado. É texto estilizado (não imagem), então
- * fica nítida em qualquer tamanho. O tamanho vem de `--logo-h` (altura do quadrado), definido por contexto.
+ * Marca da loja (logotipo "Ki Sapato", em PNG com fundo transparente). `onLight` usa a versão preta, para fundos claros; sem ele
+ * usa a branca, para fundos escuros ou fotos. A altura vem de `--logo-h` (definido por contexto) vezes 0,9.
  */
-export function Logo({ className, onLight }: { className?: string; /** Para fundo claro: quadrado preto e texto escuro. */ onLight?: boolean }) {
+export function Logo({ className, onLight }: { className?: string; /** Para fundo claro: logo preta. */ onLight?: boolean }) {
   return (
-    <span className={`logo${onLight ? " logo-on-light" : ""}${className ? ` ${className}` : ""}`} role="img" aria-label="Ki Sapato">
-      <span className="logo-ki" aria-hidden="true">KI</span>
-      <span className="logo-sapato" aria-hidden="true">SAPATO</span>
+    <span className={`logo${className ? ` ${className}` : ""}`}>
+      {/* eslint-disable-next-line @next/next/no-img-element -- logo estática da loja */}
+      <img src={onLight ? "/logo.png" : "/logo-branca.png"} alt="Ki Sapato" width={1000} height={237} decoding="async" />
     </span>
   );
 }

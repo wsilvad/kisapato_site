@@ -67,7 +67,7 @@ export function CartDrawer({ freeAbove }: { freeAbove: number }) {
                   </Link>
                   <div className="drawer-info">
                     <Link href={`/produtos/${l.slug}`} onClick={closeDrawer} className="drawer-name">{l.name}</Link>
-                    <small>{l.color} · nº {l.size}</small>
+                    <small>{l.color} · {l.sizeLabel ? `tam. ${l.sizeLabel}` : `nº ${l.size}`}</small>
                     <div className="drawer-row">
                       <div className="qty" role="group" aria-label={`Quantidade de ${l.name}`}>
                         <button type="button" aria-label="Diminuir" disabled={l.quantity <= 1} onClick={() => setQuantity(l.variantId, l.quantity - 1)}>−</button>

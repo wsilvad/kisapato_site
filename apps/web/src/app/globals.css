@@ -96,41 +96,22 @@ h2 {
   display: flex;
   align-items: center;
   width: 300px;
-  --logo-h: 64px;
+  --logo-h: 46px;
   text-decoration: none;
 }
 
-/* Marca: quadrado branco com "KI" + "SAPATO". Proporções medidas sobre a logo original. */
+/* Marca: PNG com fundo transparente (logo.png preta, logo-branca.png para fundo escuro); altura = --logo-h × 0,9 */
 .logo {
   display: inline-flex;
   align-items: center;
-  gap: calc(var(--logo-h, 64px) * 0.3);
-  font-family: var(--font-serif);
-  line-height: 1;
+  line-height: 0;
   text-decoration: none;
-  white-space: nowrap;
 }
 
-.logo-ki {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: calc(var(--logo-h, 64px) * 0.8);
-  height: var(--logo-h, 64px);
-  padding-top: calc(var(--logo-h, 64px) * 0.06);
-  color: var(--ink);
-  background: var(--paper);
-  font-size: calc(var(--logo-h, 64px) * 0.64);
-  font-weight: 500;
-  letter-spacing: -0.06em;
-}
-
-.logo-sapato {
-  padding-top: calc(var(--logo-h, 64px) * 0.06);
-  color: var(--paper);
-  font-size: calc(var(--logo-h, 64px) * 0.76);
-  font-weight: 400;
-  letter-spacing: 0.02em;
+.logo img {
+  display: block;
+  width: auto;
+  height: calc(var(--logo-h, 64px) * 0.9);
 }
 
 .nav {
@@ -583,9 +564,16 @@ h2 {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 34px;
-  height: 34px;
+  width: 46px;
+  height: 46px;
   color: inherit;
+}
+
+/* ícone 2,5x maior (14 → 35 px), com traço mais fino para não pesar */
+.sh-social svg {
+  width: 35px;
+  height: 35px;
+  stroke-width: 1.5;
 }
 
 .sh-social a:hover {
@@ -626,7 +614,7 @@ h2 {
   }
 
   .header-logo {
-    --logo-h: 44px;
+    --logo-h: 34px;
   }
 
   .nav {
@@ -1264,7 +1252,8 @@ a.btn-small { display: inline-flex; align-items: center; text-decoration: none; 
 .crumbs a { color: var(--muted); text-decoration: none; }
 .crumbs a:hover { color: var(--ink); text-decoration: underline; }
 .crumbs [aria-current] { color: var(--ink); }
-.pdp-grid { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: 56px; align-items: start; }
+/* foto ~30% menor que antes (antes 7/12 da largura): o bloco foto + compra fica centralizado */
+.pdp-grid { display: grid; grid-template-columns: minmax(0, calc((100% - 56px) * 0.408)) minmax(0, calc((100% - 56px) * 0.417)); justify-content: center; gap: 56px; align-items: start; }
 .pdp-info { display: flex; flex-direction: column; gap: 22px; }
 .pdp-title-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .pdp-title { font-size: 38px; line-height: 1.08; }
@@ -1322,22 +1311,10 @@ a.btn-small { display: inline-flex; align-items: center; text-decoration: none; 
 .ship-price .free { color: #1b6e3a; }
 .ship-note { margin: 0; color: var(--muted); font-size: 13px; }
 
-.about { max-width: 860px; }
-.about h2, .related h2.section-title { font-size: 30px; }
-.about-text { position: relative; display: -webkit-box; margin-top: 14px; overflow: hidden; color: var(--body-2); font-size: 16px; line-height: 1.7; white-space: pre-line; -webkit-line-clamp: 6; -webkit-box-orient: vertical; }
-.about-text.is-clamped::after { content: ""; position: absolute; right: 0; bottom: 0; left: 0; height: 2.6em; background: linear-gradient(to bottom, rgba(255, 255, 255, 0), var(--paper)); pointer-events: none; }
-.about-text.is-open { display: block; overflow: visible; }
-.about-more { margin-top: 8px; padding: 6px 0; border: 0; border-bottom: 1px solid var(--ink); background: none; font: inherit; font-size: 12px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; cursor: pointer; }
-.about-empty { color: var(--muted); }
-.about-specs { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px 24px; margin: 24px 0 0; padding: 18px 0 0; border-top: 1px solid var(--line); }
-.about-specs dt { color: var(--muted); font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; }
-.about-specs dd { margin: 2px 0 0; font-size: 15px; }
-.about-care { margin-top: 20px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
-.about-care summary { padding: 14px 0; cursor: pointer; font-size: 13px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; }
-.about-care p { margin: 0 0 16px; color: var(--body-2); line-height: 1.6; }
+.related h2.section-title { font-size: 30px; }
 .related-hint { margin: 6px 0 20px; color: var(--muted); }
 
-@media (min-width: 981px) { .pdp-info { position: sticky; top: 16px; } }
+@media (min-width: 981px) { .pdp-info { position: sticky; top: 16px; zoom: 0.85; } } /* coluna de compra 15% menor: Descrição e Garantia aparecem sem rolar */
 @media (max-width: 980px) {
   .pdp-grid { grid-template-columns: minmax(0, 1fr); gap: 28px; }
   .pdp-title { font-size: 30px; }
@@ -1484,8 +1461,6 @@ a.btn-small { display: inline-flex; align-items: center; text-decoration: none; 
 .sh-left { display: flex; align-items: center; min-width: 0; }
 .sh-menu-btn, .sh-icon.sh-search-toggle { display: none; }
 .sh-logo { --logo-h: 46px; justify-self: center; display: flex; color: inherit; text-decoration: none; }
-.logo-on-light .logo-ki { color: var(--paper); background: var(--ink); }
-.logo-on-light .logo-sapato { color: var(--ink); }
 .sh-search { display: flex; align-items: center; width: 100%; max-width: 280px; min-width: 0; height: 40px; border: 1px solid #dcdcd8; background: var(--paper); transition: background-color 0.25s, border-color 0.25s; }
 .sh-search:focus-within { border-color: var(--ink); }
 .sh-search input { flex: 1; min-width: 0; height: 100%; padding: 0 4px 0 14px; border: 0; border-radius: 0; outline: 0; background: transparent; color: var(--ink); font: inherit; font-size: 14px; -webkit-appearance: none; appearance: none; }
@@ -1869,3 +1844,110 @@ button.mm-row { width: 100%; border: 0; background: none; font: inherit; text-al
 .color-photos { display: grid; gap: 8px; padding: 12px 14px; border: 1px solid var(--line); background: var(--paper); }
 .color-photos-head { display: flex; align-items: center; gap: 12px; }
 .color-photos-head strong { font-size: 14px; }
+
+/* admin: um item por cor no cadastro do produto */
+.color-add { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.color-add input { flex: 1 1 240px; min-width: 0; }
+.color-items { display: grid; gap: 8px; }
+.color-item { display: grid; gap: 8px; padding: 10px 12px; border: 1px solid var(--line); background: var(--paper); }
+.color-item-head { display: flex; align-items: center; gap: 12px; }
+.color-item-title { display: flex; flex-direction: column; min-width: 0; font-size: 14px; }
+.color-item-title em { color: var(--muted); font-size: 12px; font-style: normal; }
+.color-item-summary { margin-left: auto; padding-right: 8px; color: var(--muted); font-size: 13px; white-space: nowrap; }
+.color-item-summary b { color: var(--sale); font-weight: 500; }
+.color-item-sizes { padding-left: 52px; }
+/* um ícone por numeração; o estoque aparece ao passar o mouse ou focar */
+.size-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 0; padding: 0; list-style: none; }
+.color-item-sizes .size-chips { margin: 0; }
+.size-chip { position: relative; display: inline-flex; align-items: center; justify-content: center; min-width: 30px; height: 28px; padding: 0 8px; border: 1px solid #bdbdbd; border-radius: 14px; background: var(--paper); font-size: 12px; cursor: default; }
+.size-chip.is-out { border-color: var(--line); color: #b0b0b0; text-decoration: line-through; }
+.size-chip:hover, .size-chip:focus-visible { border-color: var(--ink); outline: none; }
+.size-chip::after { content: attr(data-tip); position: absolute; bottom: calc(100% + 6px); left: 50%; z-index: 5; padding: 5px 9px; background: var(--ink); color: var(--paper); font-size: 12px; line-height: 1.3; text-decoration: none; white-space: nowrap; border-radius: 3px; opacity: 0; pointer-events: none; transform: translateX(-50%); transition: opacity 0.12s; }
+.size-chip:hover::after, .size-chip:focus-visible::after { opacity: 1; }
+/* janela "Ver mais" da cor */
+.color-modal { max-width: 760px; }
+.color-modal .crop-head small { color: var(--muted); font-weight: 400; }
+.color-modal-name { display: flex; flex-direction: column; gap: 4px; max-width: 320px; font-size: 13px; }
+.color-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; margin: 0; }
+.color-facts div { padding: 8px 10px; border: 1px solid var(--line); background: var(--surface); }
+.color-facts dt { color: var(--muted); font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; }
+.color-facts dd { margin: 2px 0 0; font-size: 14px; }
+.color-modal .grid-gen button { white-space: nowrap; }
+@media (max-width: 720px) { .color-item-summary { display: none; } .color-item-head { flex-wrap: wrap; } .color-item-sizes { padding-left: 0; } }
+.stock-cell { min-width: 190px; }
+.stock-cell .size-chip { min-width: 26px; height: 24px; padding: 0 6px; font-size: 11px; }
+.color-modal > * { flex-shrink: 0; }
+
+/* cor sem estoque: continua clicável, mas esmaecida e com "Esgotado" */
+.pdp-colors button.is-out .pdp-swatch img { opacity: 0.4; }
+.pdp-colors button.is-out .pdp-color-name { color: var(--muted); }
+.pdp-color-name small { display: block; margin-top: 2px; font-size: 10px; letter-spacing: 0.04em; }
+
+/* página do produto: descrição, detalhes e garantia em itens suspensos */
+.pdp-acc { margin-top: 28px; border-top: 1px solid var(--line); }
+.pdp-acc-item { border-bottom: 1px solid var(--line); }
+.pdp-acc-item summary { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 22px 8px; font-size: 17px; cursor: pointer; list-style: none; }
+.pdp-acc-item summary::-webkit-details-marker { display: none; }
+.pdp-acc-item summary::after { content: ""; flex: none; width: 8px; height: 8px; margin-right: 4px; border-right: 1.5px solid #525252; border-bottom: 1.5px solid #525252; transform: rotate(45deg); transition: transform 0.2s; }
+.pdp-acc-item[open] summary::after { transform: rotate(-135deg); }
+.pdp-acc-item summary:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
+.pdp-acc-body { padding: 0 8px 22px; color: var(--body-2); font-size: 15px; line-height: 1.7; }
+.pdp-acc-text { margin: 0 0 12px; white-space: pre-line; }
+.pdp-acc-text a { color: var(--ink); text-decoration: underline; }
+.pdp-acc-empty { margin: 0; color: var(--muted); }
+.pdp-acc-specs { display: grid; gap: 14px; margin: 0; }
+.pdp-acc-specs dt { color: var(--ink); font-size: 14px; font-weight: 600; }
+.pdp-acc-specs dd { margin: 2px 0 0; }
+
+/* detalhes do produto: direto abaixo da foto */
+.pdp-specs { margin-top: 32px; padding-top: 24px; border-top: 1px solid var(--line); }
+.pdp-specs h2 { margin: 0 0 16px; font-size: 24px; }
+.pdp-specs dl { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 14px 24px; margin: 0; }
+.pdp-specs dt { color: var(--muted); font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; }
+.pdp-specs dd { margin: 2px 0 0; font-size: 15px; }
+
+.price-from { margin-right: 2px; color: var(--muted); font-size: 11px; font-weight: 400; letter-spacing: 0.04em; text-transform: lowercase; }
+.color-modal-prices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 16px; max-width: 520px; }
+.color-modal-prices label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+.color-modal-prices small { grid-column: 1 / -1; }
+
+/* páginas institucionais: perguntas frequentes e dados da loja */
+.faq { margin-top: 20px; }
+.store-info { margin-top: 28px; padding: 20px 22px; border: 1px solid var(--line); background: var(--surface); }
+.store-info dl { display: grid; gap: 14px; margin: 0; }
+.store-info dt { color: var(--muted); font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; }
+.store-info dd { margin: 2px 0 0; color: var(--ink); }
+.store-info-social { margin-top: 18px; }
+.store-info-social h2 { margin: 0 0 8px; font-size: 18px; }
+
+/* botão do WhatsApp fixo no canto inferior direito da loja */
+.wa-float { position: fixed; right: 20px; bottom: 20px; z-index: 90; display: flex; align-items: center; justify-content: center; width: 56px; height: 56px; border-radius: 50%; background: #25d366; color: #fff; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.22); transition: transform 0.15s; }
+.wa-float:hover { transform: scale(1.06); }
+.wa-float:focus-visible { outline: 3px solid var(--ink); outline-offset: 3px; }
+@media (max-width: 720px) { .wa-float { right: 14px; bottom: 14px; width: 52px; height: 52px; } }
+.store-info dd a { color: var(--ink); text-decoration: underline; }
+.store-info-wa { display: inline-flex; margin-top: 18px; }
+.store-map { margin-top: 22px; }
+.store-map iframe { display: block; width: 100%; height: 360px; border: 0; background: var(--surface-deep); }
+.store-map a { display: inline-block; margin-top: 8px; color: var(--ink); font-size: 13px; text-decoration: underline; }
+
+/* busca sem resultado exato: aviso de que são resultados parecidos */
+.search-similar { margin: -8px 0 20px; color: var(--muted); font-size: 14px; }
+
+/* painel: área sem permissão */
+.admin-denied { display: grid; gap: 12px; max-width: 520px; padding: 24px; border: 1px solid var(--line); background: var(--paper); }
+.admin-denied h1 { margin: 0; font-size: 24px; }
+.admin-denied p { margin: 0; color: var(--body-2); }
+.admin-denied .btn { justify-self: start; }
+
+/* painel: escolha das permissões de um usuário */
+.perm-picker { display: grid; gap: 14px; }
+.perm-total { padding: 12px 14px; border: 1px solid var(--line); background: var(--surface); }
+.perm-total small { color: var(--muted); }
+.perm-groups { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+.perm-group { display: grid; gap: 6px; margin: 0; padding: 12px 14px; border: 1px solid var(--line); }
+.perm-group legend { padding: 0 4px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
+.perm-group:disabled { opacity: 0.55; }
+.admin-form .perm-group { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+.admin-form .perm-group .check { white-space: nowrap; }
+.sync-cell { white-space: nowrap; font-size: 13px; color: var(--body-2); }

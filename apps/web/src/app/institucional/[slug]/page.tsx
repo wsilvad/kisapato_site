@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { SocialLinks } from "@/components/SocialLinks";
 import { assetUrl } from "@/lib/api";
 import { cropVarsOf } from "@/lib/crop";
 import { formatPrice } from "@/lib/format";
+import { whatsappUrl } from "@/lib/whatsapp";
 import { groupForLayout, mobileCropOf, parsePageBody, toAboutLayout, type LayoutItem, type PageBlock, type PagePhoto } from "@/lib/page-body";
 import { loadSettings } from "@/lib/site-settings";
 import type { SiteSettings } from "@/types/product";
@@ -159,6 +161,83 @@ function AboutPage({ title, body, others }: { title: string; body: string; other
   );
 }
 
+/** Perguntas frequentes: cada "## Pergunta" do texto vira um item suspenso e o que vem depois dela é a resposta. */
+function Faq({ body }: { body: string }) {
+  const groups: { question: string; answer: PageBlock[] }[] = [];
+  const intro: PageBlock[] = [];
+  for (const block of parsePageBody(body)) {
+    if (block.kind === "h2") groups.push({ question: block.eyebrow ? `${block.eyebrow}: ${block.title}` : block.title, answer: [] });
+    else if (groups.length === 0) intro.push(block);
+    else groups.at(-1)!.answer.push(block);
+  }
+  return (
+    <>
+      {intro.map((b, i) => (b.kind === "p" || b.kind === "ul" ? <TextBlock key={i} block={b} /> : null))}
+      <div className="pdp-acc faq">
+        {groups.map((g) => (
+          <details key={g.question} className="pdp-acc-item">
+            <summary>{g.question}</summary>
+            <div className="pdp-acc-body">{g.answer.map((b, i) => (b.kind === "p" || b.kind === "ul" ? <TextBlock key={i} block={b} /> : null))}</div>
+          </details>
+        ))}
+      </div>
+    </>
+  );
+}
+
+/**
+ * Dados da loja (os mesmos do rodapé, editados em Textos e menu → Rodapé) para Fale conosco e Nossas lojas: telefone com
+ * botão do WhatsApp e, em Nossas lojas, o mapa do Google marcado no endereço.
+ */
+function StoreInfo({ footer, social, withMap }: { footer: SiteSettings["footer"]; social: SiteSettings["social"]; withMap?: boolean }) {
+  const wa = whatsappUrl(footer.whatsapp, "Olá! Vim pelo site da Ki Sapato.");
+  const tel = footer.phone.replace(/\D/g, "");
+  const coords = (footer.mapCoords ?? "").replace(/\s+/g, "");
+  const hasMap = withMap && /^-?\d+(\.\d+)?,-?\d+(\.\d+)?$/.test(coords);
+  const hasSocial = Object.values(social).some(Boolean);
+  const rows: { label: string; value: React.ReactNode }[] = [];
+  if (footer.address) rows.push({ label: "Endereço", value: footer.address });
+  if (footer.phone) rows.push({ label: wa ? "Telefone e WhatsApp" : "Telefone", value: tel.length >= 10 ? <a href={`tel:+55${tel.slice(-11)}`}>{footer.phone}</a> : footer.phone });
+  if (footer.hours) rows.push({ label: "Atendimento", value: footer.hours });
+  if (footer.cnpj) rows.push({ label: "CNPJ", value: footer.cnpj });
+  if (rows.length === 0 && !hasSocial && !wa && !hasMap) return null;
+  return (
+    <section className="store-info">
+      {rows.length > 0 && (
+        <dl>
+          {rows.map((r) => (
+            <div key={r.label}>
+              <dt>{r.label}</dt>
+              <dd>{r.value}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
+      {wa && (
+        <a className="btn btn-solid btn-sm store-info-wa" href={wa} target="_blank" rel="noopener noreferrer">Conversar pelo WhatsApp</a>
+      )}
+      {hasMap && (
+        <div className="store-map">
+          <iframe
+            title={`Mapa: ${footer.address || "Ki Sapato"}`}
+            src={`https://www.google.com/maps?q=${coords}&z=17&hl=pt-BR&output=embed`}
+            loading="lazy"
+            referrerPolicy="no-referrer-when-downgrade"
+            allowFullScreen
+          />
+          <a href={`https://www.google.com/maps/search/?api=1&query=${coords}`} target="_blank" rel="noopener noreferrer">Abrir no Google Maps ↗</a>
+        </div>
+      )}
+      {hasSocial && (
+        <div className="store-info-social">
+          <h2>Redes sociais</h2>
+          <SocialLinks social={social} className="footer-social" />
+        </div>
+      )}
+    </section>
+  );
+}
+
 /** Valores e prazos de entrega lidos da tabela de frete do painel, para a política nunca ficar desatualizada. */
 function ShippingTable({ shipping }: { shipping: SiteSettings["shipping"] }) {
   if (shipping.regions.length === 0) return null;
@@ -215,8 +294,9 @@ export default async function InstitucionalPage({ params }: { params: Promise<{ 
       </nav>
       <h1 className="page-title">{page.title}</h1>
       <div className="inst-body">
-        <RichText body={page.body} />
+        {slug === "perguntas-frequentes" ? <Faq body={page.body} /> : <RichText body={page.body} />}
         {slug === "politicas-de-entrega" && <ShippingTable shipping={settings.shipping} />}
+        {(slug === "fale-conosco" || slug === "nossas-lojas") && <StoreInfo footer={settings.footer} social={settings.social} withMap={slug === "nossas-lojas"} />}
       </div>
       {others.length > 0 && (
         <aside className="inst-more">

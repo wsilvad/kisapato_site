@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ProductCard } from "@/components/ProductCard";
-import { AboutProduct } from "@/components/pdp/AboutProduct";
+import { ProductDetails, ProductSpecs } from "@/components/pdp/ProductDetails";
 import { ProductPurchase } from "@/components/pdp/ProductPurchase";
 import { api } from "@/lib/api";
 import { segmentLabel } from "@/lib/segment";
@@ -35,7 +35,6 @@ export default async function ProdutoPage({ params }: { params: Promise<{ slug: 
     product.brand?.name && { label: "Marca", value: product.brand.name },
     { label: "Categoria", value: product.category.name },
     { label: "Público", value: segmentLabel(product.ageGroup, product.gender) },
-    product.reference && { label: "Referência", value: product.reference },
   ].filter(Boolean) as { label: string; value: string }[];
 
   return (
@@ -51,10 +50,8 @@ export default async function ProdutoPage({ params }: { params: Promise<{ slug: 
       </nav>
 
       <div className="pdp-grid">
-        <ProductPurchase product={product} />
+        <ProductPurchase product={product} details={<ProductDetails description={product.description} care={product.careInstructions ?? null} />} belowPhoto={<ProductSpecs specs={specs} />} />
       </div>
-
-      <AboutProduct description={product.description} care={product.careInstructions ?? null} specs={specs} />
 
       {related.length > 0 && (
         <section className="related" aria-labelledby="related-title">

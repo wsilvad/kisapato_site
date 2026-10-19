@@ -97,8 +97,9 @@ async function main() {
   if (email && password) {
     await prisma.profile.upsert({
       where: { email },
-      update: { role: "ADMIN" },
-      create: { email, name: "Administrador", role: "ADMIN", passwordHash: await bcrypt.hash(password, 12) },
+      // o admin inicial é o dono do painel: acesso total ("*")
+      update: { role: "ADMIN", adminPermissions: ["*"] },
+      create: { email, name: "Administrador", role: "ADMIN", adminPermissions: ["*"], passwordHash: await bcrypt.hash(password, 12) },
     });
     console.log(`Admin garantido: ${email}`);
   }

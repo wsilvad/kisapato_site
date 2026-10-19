@@ -3,6 +3,7 @@ import { AppError } from "../../lib/errors.js";
 import { prisma } from "../../lib/prisma.js";
 import type { ListProductsQuery, ProductFilters } from "./products.schemas.js";
 import { withColorPhotos, withFirstColorPhotos } from "./colors.js";
+import { searchProducts } from "./search.js";
 import { ageGroupsOf, genderWhere, gendersOf } from "./segment.js";
 
 /**
@@ -27,7 +28,7 @@ const include = { brand: true, category: { include: { productClass: true } } };
 export const withColorsInclude = { ...include, colors: true, variants: { select: { color: true } } };
 
 /** Monta o `where` dos filtros da vitrine (sem a regra de visibilidade, que o chamador soma). */
-function filtersWhere({ category, productClass, ageGroup, gender, brand, color, size, minPrice, maxPrice, selo, slugs, search }: Partial<ProductFilters>): Prisma.ProductWhereInput[] {
+function filtersWhere({ category, productClass, ageGroup, gender, brand, color, size, minPrice, maxPrice, selo, slugs, searchIds }: Partial<ProductFilters> & { searchIds?: string[] }): Prisma.ProductWhereInput[] {
   const conditions: Prisma.ProductWhereInput[] = [];
   if (category || productClass) {
     conditions.push({ category: { ...(category && { slug: { in: category } }), ...(productClass && { productClass: { slug: productClass } }) } });
@@ -43,33 +44,50 @@ function filtersWhere({ category, productClass, ageGroup, gender, brand, color, 
     conditions.push({ price: { ...(minPrice !== undefined && { gte: minPrice }), ...(maxPrice !== undefined && { lte: maxPrice }) } });
   }
   if (slugs) conditions.push({ slug: { in: slugs.split(",").map((x) => x.trim()).filter(Boolean).slice(0, 50) } });
-  if (search) conditions.push({ name: { contains: search, mode: "insensitive" as const } });
+  // busca: os ids já vêm escolhidos (e ordenados) pela busca tolerante a erros (search.ts)
+  if (searchIds) conditions.push({ id: { in: searchIds } });
   if (selo) conditions.push(seloWhere(selo));
   return conditions;
 }
 
 const orderings = {
+  // sem busca não há relevância: vale a ordem das novidades
+  relevancia: { createdAt: "desc" },
   novidades: { createdAt: "desc" },
   "menor-preco": { price: "asc" },
   "maior-preco": { price: "desc" },
   nome: { name: "asc" },
-} satisfies Record<ListProductsQuery["sort"], Prisma.ProductOrderByWithRelationInput>;
+} satisfies Record<NonNullable<ListProductsQuery["sort"]>, Prisma.ProductOrderByWithRelationInput>;
 
-export async function listProducts({ page, pageSize, sort, ...filters }: ListProductsQuery) {
-  const where: Prisma.ProductWhereInput = { AND: [visibleProductWhere, ...filtersWhere(filters)] };
+export async function listProducts({ page, pageSize, sort, search, ...filters }: ListProductsQuery) {
+  const found = search ? await searchProducts(search, visibleProductWhere) : null;
+  const order = sort ?? (found ? "relevancia" : "novidades");
+  const where: Prisma.ProductWhereInput = { AND: [visibleProductWhere, ...filtersWhere({ ...filters, searchIds: found?.ids })] };
+  const searchMode = found?.mode;
+
+  // Busca em ordem de relevância: filtra no banco, ordena pela nota da busca e pagina aqui (são poucas dezenas de itens).
+  if (found && order === "relevancia") {
+    const matching = new Set((await prisma.product.findMany({ where, select: { id: true } })).map((m) => m.id));
+    const ordered = found.ids.filter((id) => matching.has(id));
+    const pageIds = ordered.slice((page - 1) * pageSize, page * pageSize);
+    const rows = await prisma.product.findMany({ where: { id: { in: pageIds } }, include: withColorsInclude });
+    const byId = new Map(rows.map((r) => [r.id, r]));
+    const items = pageIds.flatMap((id) => (byId.has(id) ? [withFirstColorPhotos(byId.get(id)!)] : []));
+    return { items, page, pageSize, total: ordered.length, totalPages: Math.ceil(ordered.length / pageSize), searchMode };
+  }
 
   const [items, total] = await Promise.all([
     prisma.product.findMany({
       where,
       include: withColorsInclude,
-      orderBy: orderings[sort],
+      orderBy: orderings[order],
       skip: (page - 1) * pageSize,
       take: pageSize,
     }),
     prisma.product.count({ where }),
   ]);
 
-  return { items: items.map(withFirstColorPhotos), page, pageSize, total, totalPages: Math.ceil(total / pageSize) };
+  return { items: items.map(withFirstColorPhotos), page, pageSize, total, totalPages: Math.ceil(total / pageSize), ...(searchMode && { searchMode }) };
 }
 
 /**
@@ -79,8 +97,9 @@ export async function listProducts({ page, pageSize, sort, ...filters }: ListPro
  * `segments` traz, por faixa, o total e quantos servem a feminino e a masculino (o menu do topo usa).
  */
 export async function productFacets({ selo, search, ageGroup }: Pick<ProductFilters, "selo" | "search" | "ageGroup">) {
+  const found = search ? await searchProducts(search, visibleProductWhere) : null;
   const products = await prisma.product.findMany({
-    where: { AND: [visibleProductWhere, ...filtersWhere({ selo, search })] },
+    where: { AND: [visibleProductWhere, ...filtersWhere({ selo, searchIds: found?.ids })] },
     select: {
       price: true,
       ageGroup: true,

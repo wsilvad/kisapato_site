@@ -63,7 +63,7 @@ export async function inventory(now = new Date()) {
   const since60 = new Date(now.getTime() - 60 * DAY_MS);
   const since30 = new Date(now.getTime() - 30 * DAY_MS);
   const [variants, recent] = await Promise.all([
-    prisma.productVariant.findMany({ include: { product: { omit: { costPrice: false }, include: { category: true, brand: true } } } }),
+    prisma.productVariant.findMany({ include: { product: { omit: { costPrice: false }, include: { category: true, brand: true, colors: { omit: { costPrice: false } } } } } }),
     prisma.orderItem.findMany({
       where: { order: { status: { in: [...REALIZED] }, createdAt: { gte: since60 } } },
       select: { variantId: true, quantity: true, order: { select: { createdAt: true } } },
@@ -88,10 +88,15 @@ export async function inventory(now = new Date()) {
     brandName: v.product.brand?.name ?? null,
     color: v.color,
     size: v.size,
+    sizeLabel: v.sizeLabel,
     sku: v.sku,
     stock: v.stock,
-    price: Number(v.product.price),
-    cost: v.product.costPrice === null ? null : Number(v.product.costPrice),
+    // preço e custo da cor (item do ERP) quando ela tem os próprios; senão os do produto
+    price: Number(v.product.colors.find((c) => c.name === v.color)?.price ?? v.product.price),
+    cost: (() => {
+      const cost = v.product.colors.find((c) => c.name === v.color)?.costPrice ?? v.product.costPrice;
+      return cost === null || cost === undefined ? null : Number(cost);
+    })(),
   }));
   return buildInventory(rows, sales, now);
 }

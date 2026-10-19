@@ -51,6 +51,8 @@ export interface ProductVariant {
   id: string;
   sku: string;
   size: number;
+  /** Rótulo da grade de confecção ("M", "Único"); vazio = mostra o número. */
+  sizeLabel?: string | null;
   color: string;
   stock: number;
 }
@@ -63,6 +65,16 @@ export interface Product {
   brand?: Brand | null;
   brandId?: string | null;
   careInstructions?: string | null;
+  /** Nome como vem do ERP (com a referência); só o ERP muda. `name` é o nome exibido no site. */
+  erpName?: string | null;
+  /** Nas listas: as cores têm preços diferentes, então o preço mostrado é "a partir de". */
+  priceFrom?: boolean;
+  /** Referência do fornecedor no ERP: produto gerenciado pelo ERP. */
+  erpRef?: string | null;
+  /** Tipo de grade das numerações (numeração ou confecção). */
+  sizeScheme?: "NUMERACAO" | "CONFECCAO";
+  /** Última vez que os dados (e o estoque) do produto foram puxados do ERP. */
+  erpSyncedAt?: string | null;
   ageGroup?: AgeGroup;
   gender?: Gender;
   reference?: string | null;
@@ -87,6 +99,9 @@ export interface Product {
 export interface ProductColor {
   name: string;
   images: string[];
+  /** Preço da cor (o do produto quando ela não tem preço próprio) e o "de" riscado. */
+  price?: string | null;
+  compareAtPrice?: string | null;
 }
 
 /** Opção de filtro com a quantidade de produtos que ela traz. */
@@ -118,6 +133,8 @@ export interface Paginated<T> {
   pageSize: number;
   total: number;
   totalPages: number;
+  /** Com busca: "exact" = achou o que foi digitado (sem contar acentos); "similar" = não achou e mostra os parecidos. */
+  searchMode?: "exact" | "similar";
 }
 
 export type BadgeKey = "LANCAMENTO" | "PROMOCAO" | "DESTAQUE";
@@ -136,6 +153,8 @@ export interface User {
   /** CPF só com dígitos (null em contas antigas, que precisam informá-lo antes de comprar). */
   cpf: string | null;
   role: "CUSTOMER" | "ADMIN";
+  /** Áreas do painel liberadas (só ADMIN; "*" = todas; vazio = acesso ao painel desativado). */
+  permissions?: string[];
   twoFactorEnabled: boolean;
   /** A verificação em duas etapas ainda não foi ativada nem dispensada: mostrar a oferta. */
   twoFactorOffer: boolean;
@@ -304,6 +323,10 @@ export interface SiteSettings {
     phone: string;
     hours: string;
     cnpj: string;
+    /** WhatsApp com DDI e DDD (ex.: +5551998113318); vazio = sem botão flutuante. */
+    whatsapp?: string;
+    /** "latitude,longitude" da loja para o mapa de Nossas lojas; vazio = sem mapa. */
+    mapCoords?: string;
     /** Logos de pagamento do rodapé, na ordem: visa, mastercard, elo, hipercard, amex, diners, boleto, pix. */
     paymentMethods: string[];
   };
@@ -386,6 +409,8 @@ export interface InventoryItem {
   brandName: string | null;
   color: string;
   size: number;
+  /** Rótulo da grade de confecção ("M", "Único"); vazio = mostra o número. */
+  sizeLabel?: string | null;
   sku: string;
   stock: number;
   price: number;
@@ -420,7 +445,7 @@ export interface StockMovement {
   note: string | null;
   orderId: string | null;
   createdAt: string;
-  variant: { sku: string; color: string; size: number; product: { name: string } };
+  variant: { sku: string; color: string; size: number; sizeLabel?: string | null; product: { name: string } };
 }
 
 export interface CustomerStat {
@@ -434,4 +459,14 @@ export interface CustomerStat {
   spent: number;
   avgTicket: number;
   lastOrderAt: string | null;
+}
+
+/** Usuário do painel (Usuários). */
+export interface PanelUser {
+  id: string;
+  name: string | null;
+  email: string;
+  permissions: string[];
+  twoFactorEnabled: boolean;
+  createdAt: string;
 }

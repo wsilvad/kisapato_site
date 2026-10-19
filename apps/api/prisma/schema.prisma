@@ -24,6 +24,12 @@ enum StockMovementType {
   ADJUSTMENT
 }
 
+/// Como as numerações do produto são lidas: números (34, 35…) ou grade de confecção (P, M, G…).
+enum SizeScheme {
+  NUMERACAO
+  CONFECCAO
+}
+
 /// Faixa etária do produto.
 enum AgeGroup {
   ADULTO
@@ -48,36 +54,38 @@ enum OrderStatus {
 
 /// Perfil do usuário (cliente ou administrador).
 model Profile {
-  id           String   @id @default(uuid()) @db.Uuid
-  email        String   @unique
-  passwordHash String
+  id                        String             @id @default(uuid()) @db.Uuid
+  email                     String             @unique
+  passwordHash              String
   /// Nome completo.
-  name         String?
-  phone        String?
+  name                      String?
+  phone                     String?
   /// CPF só com dígitos (nota fiscal). Único: uma conta por CPF.
-  cpf          String?  @unique
+  cpf                       String?            @unique
   /// Telefone confirmado por código. Só ele serve para recuperar a senha por SMS; único para o SMS achar uma conta só.
-  verifiedPhone String? @unique
+  verifiedPhone             String?            @unique
   /// E-mail confirmado por código (contas criadas antes da confirmação obrigatória ficam sem data).
-  emailVerifiedAt DateTime?
+  emailVerifiedAt           DateTime?
   /// Cadastro novo que ainda não confirmou e-mail e telefone: não entra, não reserva e-mail/CPF e pode ser substituído.
-  pendingVerification Boolean @default(false)
-  role         Role     @default(CUSTOMER)
+  pendingVerification       Boolean            @default(false)
+  role                      Role               @default(CUSTOMER)
+  /// Áreas do painel que este usuário pode usar (só vale para ADMIN). "*" = acesso total; vazio = acesso ao painel desativado.
+  adminPermissions          String[]           @default([])
   /// Sobe a cada troca de senha ou de 2FA e derruba as sessões abertas (o token guarda a versão).
-  tokenVersion Int      @default(0)
-  passwordChangedAt DateTime?
-  twoFactorEnabled  Boolean @default(false)
+  tokenVersion              Int                @default(0)
+  passwordChangedAt         DateTime?
+  twoFactorEnabled          Boolean            @default(false)
   /// Segredo TOTP cifrado (AES-256-GCM). Nunca sai da API; fica oculto das consultas por padrão.
-  twoFactorSecret   String?
+  twoFactorSecret           String?
   /// O cliente já viu e dispensou a oferta de ativar a verificação em duas etapas.
   twoFactorOfferDismissedAt DateTime?
-  orders       Order[]
-  addresses    Address[]
-  cards        SavedCard[]
-  codes        VerificationCode[]
-  recoveryCodes RecoveryCode[]
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  orders                    Order[]
+  addresses                 Address[]
+  cards                     SavedCard[]
+  codes                     VerificationCode[]
+  recoveryCodes             RecoveryCode[]
+  createdAt                 DateTime           @default(now())
+  updatedAt                 DateTime           @updatedAt
 
   @@map("profiles")
 }
@@ -109,20 +117,20 @@ model Address {
 /// Cartão salvo: só o que o gateway de pagamento devolve (token, bandeira, 4 últimos dígitos e validade).
 /// O número completo e o CVV nunca passam por aqui nem são gravados.
 model SavedCard {
-  id           String   @id @default(uuid())
-  profileId    String   @db.Uuid
-  profile      Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  id         String   @id @default(uuid())
+  profileId  String   @db.Uuid
+  profile    Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
   /// Gateway que emitiu o token (ex.: "mercadopago").
-  provider     String
+  provider   String
   /// Token do cartão no gateway.
-  token        String
-  brand        String
-  last4        String
-  expMonth     Int
-  expYear      Int
-  holderName   String
-  isDefault    Boolean  @default(false)
-  createdAt    DateTime @default(now())
+  token      String
+  brand      String
+  last4      String
+  expMonth   Int
+  expYear    Int
+  holderName String
+  isDefault  Boolean  @default(false)
+  createdAt  DateTime @default(now())
 
   @@unique([provider, token])
   @@index([profileId])
@@ -193,6 +201,8 @@ model Brand {
   sortOrder Int       @default(0)
   /// Inativa: seus produtos somem da loja.
   active    Boolean   @default(true)
+  /// Código da marca no ERP (codMarca); liga a marca do site à do ERP na importação.
+  erpCode   String?   @unique
   products  Product[]
 
   @@map("brands")
@@ -259,9 +269,17 @@ model Product {
   variants         ProductVariant[]
   /// Fotos de cada cor (até 4); a ordem das cores define a primeira, que abre a página do produto.
   colors           ProductColor[]
+  sizeScheme       SizeScheme       @default(NUMERACAO)
+  /// Produto vindo do ERP: referência do fornecedor (`refFornecedor`) e código da marca; juntos são a chave do pai.
+  erpRef           String?
+  erpBrandCode     String?
+  /// Nome como vem do ERP (descrição sem a cor, com a referência). Só o ERP muda; `name` é o nome exibido no site.
+  erpName          String?
+  erpSyncedAt      DateTime?
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @updatedAt
 
+  @@unique([erpBrandCode, erpRef])
   @@index([categoryId])
   @@index([brandId])
   @@index([ageGroup, gender])
@@ -271,16 +289,22 @@ model Product {
 /// Cor de um produto (o "filho" do produto pai) com as fotos dela. As numerações dessa cor são as `ProductVariant`
 /// com o mesmo nome em `color`. Sem fotos aqui, a cor usa as fotos gerais do produto (`Product.images`).
 model ProductColor {
-  id        String   @id @default(uuid())
-  productId String
-  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-  name      String
+  id          String   @id @default(uuid())
+  productId   String
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  name        String
   /// Posição da cor no produto: a de menor número é a primeira.
-  position  Int      @default(0)
+  position    Int      @default(0)
   /// URLs das fotos da cor (no máximo 4); a primeira é a principal.
-  images    String[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  images      String[]
+  /// Item do ERP que origina esta cor ("empresa.item", ex.: 1.2578) e o custo dele.
+  erpItemCode String?  @unique
+  costPrice   Decimal? @db.Decimal(10, 2)
+  /// Preço desta cor (e o "de" riscado). Vazio = vale o preço do produto, que é o menor entre as cores.
+  price          Decimal? @db.Decimal(10, 2)
+  compareAtPrice Decimal? @db.Decimal(10, 2)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   @@unique([productId, name])
   @@map("product_colors")
@@ -288,15 +312,20 @@ model ProductColor {
 
 /// Combinação de numeração + cor, com estoque próprio.
 model ProductVariant {
-  id         String          @id @default(uuid())
-  productId  String
-  product    Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
-  sku        String          @unique
-  size       Int
-  color      String
-  stock      Int             @default(0)
-  orderItems OrderItem[]
-  movements  StockMovement[]
+  id          String          @id @default(uuid())
+  productId   String
+  product     Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  sku         String          @unique
+  size        Int
+  color       String
+  stock       Int             @default(0)
+  /// Código do tamanho no ERP (codTamanho) e EAN, quando vierem de lá.
+  erpSizeCode String?
+  /// Rótulo da grade de confecção ("P", "M", "G", "Único"…); vazio = mostra o número de `size`.
+  sizeLabel   String?
+  ean         String?
+  orderItems  OrderItem[]
+  movements   StockMovement[]
 
   @@unique([productId, size, color])
   @@map("product_variants")

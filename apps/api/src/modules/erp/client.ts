@@ -1,0 +1,106 @@
+import { AppError } from "../../lib/errors.js";
+import { asArray, parseXml, text, type XmlObject } from "./xml.js";
+
+/**
+ * Cliente das consultas do ERP (Macle ControleWS, SOAP). Só leitura: as operações que gravam (addCliente*, addPedidoSite)
+ * ficam de fora de propósito. O endereço vem de `ERP_URL` (ex.: http://host:porta/ControleWS/ControleWS).
+ */
+export interface ErpSize {
+  code: string;
+  label: string;
+  ean: string;
+}
+
+export interface ErpItem {
+  pkItem: string;
+  description: string;
+  brandCode: string;
+  type: string;
+  group: string;
+  gender: string;
+  color: string;
+  supplierRef: string;
+  siteClass: string;
+  price: number;
+  previousPrice: number;
+  cost: number;
+  note: string;
+  sizes: ErpSize[];
+}
+
+function endpoint() {
+  const url = process.env.ERP_URL;
+  if (!url) throw new AppError("ERP_URL não configurada (endereço do serviço do ERP).", 500);
+  return url;
+}
+
+async function call(operation: string, params: Record<string, string>): Promise<XmlObject[]> {
+  const body = Object.entries(params).map(([k, v]) => `<${k}>${v.replace(/[<>&]/g, "")}</${k}>`).join("");
+  const envelope = `<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:web="http://webservice.macle.com/"><soapenv:Header/><soapenv:Body><web:${operation}>${body}</web:${operation}></soapenv:Body></soapenv:Envelope>`;
+  const res = await fetch(endpoint(), { method: "POST", headers: { "Content-Type": "text/xml; charset=utf-8", SOAPAction: '""' }, body: envelope, signal: AbortSignal.timeout(30_000) });
+  const xml = await res.text();
+  if (!res.ok && !xml.includes("<return")) throw new AppError(`ERP respondeu ${res.status} em ${operation}`, 502);
+  const parsed = parseXml(xml);
+  const bodyNode = (parsed.Envelope as XmlObject | undefined)?.Body as XmlObject | undefined;
+  const response = Object.values(bodyNode ?? {})[0] as XmlObject | undefined;
+  return asArray(response && typeof response === "object" ? (response.return as XmlObject | XmlObject[] | undefined) : undefined).filter((r) => typeof r === "object");
+}
+
+const num = (value: string) => {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : 0;
+};
+
+function toItem(raw: XmlObject): ErpItem | null {
+  const pkItem = text(raw.pkItem);
+  if (!pkItem) return null;
+  return {
+    pkItem,
+    description: text(raw.descricao),
+    brandCode: text(raw.codMarca),
+    type: text(raw.tipoItem),
+    group: text(raw.grupoItem),
+    gender: text(raw.genero),
+    color: text(raw.corItem),
+    supplierRef: text(raw.refFornecedor).trim(),
+    siteClass: text(raw.classeItemSite),
+    price: num(text(raw.precoVendaSite)),
+    previousPrice: num(text(raw.precoAnteriorSite)),
+    cost: num(text(raw.precoCusto)),
+    note: text(raw.obs),
+    sizes: asArray(raw.listTamanhoItem as XmlObject | XmlObject[] | undefined).map((t) => ({ code: text(t.codTamanho), label: text(t.descTamanho), ean: text(t.ean) })),
+  };
+}
+
+/** Dados de um item pelo código "empresa.item" (ex.: 1.2578); null se não existir. Vale para qualquer item, marcado ou não para o site. */
+export async function getItem(code: string): Promise<ErpItem | null> {
+  const rows = await call("getDadosItemByCod", { codItem: code });
+  return rows[0] ? toItem(rows[0]) : null;
+}
+
+/** Estoque por tamanho (codTamanho → quantidade somada de todas as lojas; o ERP aceita saldo negativo). */
+export async function getStock(code: string): Promise<Map<string, number>> {
+  const rows = await call("getEstoqueItem", { codItem: code });
+  const stock = new Map<string, number>();
+  for (const r of rows) stock.set(text(r.codTamanho), (stock.get(text(r.codTamanho)) ?? 0) + num(text(r.qtd)));
+  return stock;
+}
+
+/** Marcas do ERP (codMarca → descrição). */
+export async function getBrands(): Promise<{ code: string; name: string }[]> {
+  return (await call("getMarcas", {})).map((r) => ({ code: text(r.codMarca), name: text(r.descricao) })).filter((b) => b.code);
+}
+
+/**
+ * O ERP não tem busca por referência: varre os códigos "empresa.item" em ordem (em lotes paralelos) e devolve os itens que
+ * passam no filtro. `onProgress` recebe o último código testado.
+ */
+export async function findItems(filter: (item: ErpItem) => boolean, { from = 1, to = 3600, company = 1, batch = 12 } = {}): Promise<ErpItem[]> {
+  const found: ErpItem[] = [];
+  for (let start = from; start <= to; start += batch) {
+    const codes = Array.from({ length: Math.min(batch, to - start + 1) }, (_, i) => `${company}.${start + i}`);
+    const items = await Promise.all(codes.map((c) => getItem(c).catch(() => null)));
+    for (const item of items) if (item && filter(item)) found.push(item);
+  }
+  return found;
+}

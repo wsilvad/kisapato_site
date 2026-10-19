@@ -62,7 +62,7 @@ export default function OrdersAdmin() {
               onClick={() =>
                 downloadCsv("vendas.csv", ["Pedido", "Data", "Cliente", "E-mail", "Situação", "Total", "Itens"],
                   visible.map((o) => [o.id.slice(0, 8), formatDateTime(o.createdAt), o.profile?.name, o.profile?.email, STATUS[o.status].label, Number(o.total).toFixed(2),
-                    o.items.map((i) => `${i.quantity}x ${i.variant.product.name} (${i.variant.color}, ${i.variant.size})`).join(" | ")]))
+                    o.items.map((i) => `${i.quantity}x ${i.variant.product.name} (${i.variant.color}, ${i.variant.sizeLabel ?? i.variant.size})`).join(" | ")]))
               }
             >
               Exportar CSV
@@ -126,7 +126,7 @@ export default function OrdersAdmin() {
                         <ul>
                           {o.items.map((item) => (
                             <li key={item.id}>
-                              {item.quantity}× {item.variant.product.name} — {item.variant.color}, nº {item.variant.size} ({item.variant.sku}) · {formatPrice(item.unitPrice)}
+                              {item.quantity}× {item.variant.product.name} — {item.variant.color}, {item.variant.sizeLabel ? `tam. ${item.variant.sizeLabel}` : `nº ${item.variant.size}`} ({item.variant.sku}) · {formatPrice(item.unitPrice)}
                             </li>
                           ))}
                         </ul>

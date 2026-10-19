@@ -1,5 +1,7 @@
 "use client";
 
+import type { Category } from "@/types/product";
+
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useCategories } from "./useCategories";
@@ -9,8 +11,8 @@ import { useCategories } from "./useCategories";
  * lista categorias que têm produtos nela; "Ver tudo" fecha a lista. Quando não cabem, só esta parte rola (setas ‹ ›),
  * para o menu principal e os seus menus suspensos continuarem fixos.
  */
-export function CategoryLinks({ selo, faixa, genero, active }: { selo: string; faixa: string; genero: string; active: string | null }) {
-  const categories = useCategories(selo, faixa, genero);
+export function CategoryLinks({ selo, faixa, genero, active, initial }: { selo: string; faixa: string; genero: string; active: string | null; initial?: Category[] }) {
+  const categories = useCategories(selo, faixa, genero, initial);
   const track = useRef<HTMLDivElement>(null);
   const [edge, setEdge] = useState({ start: true, end: true });
 

@@ -44,3 +44,36 @@ test("Fotos por cor: o nome da cor não diferencia maiúsculas ao juntar com as 
   const colors = colorsOf({ images: [], colors: [{ name: "Preto", position: 0, images: ["/uploads/p.jpg"] }], variants: [{ color: "preto" }] });
   assert.equal(colors.length, 1);
 });
+
+test("Fotos por cor: produto do ERP esconde a cor sem foto e as numerações dela", () => {
+  const erp = withColorPhotos({
+    erpRef: "58650400",
+    images: ["/uploads/geral.jpg"],
+    colors: [
+      { name: "Preto", position: 0, images: ["/uploads/p1.jpg"] },
+      { name: "Bege", position: 1, images: [] },
+    ],
+    variants: [{ color: "Preto" }, { color: "Bege" }, { color: "Trufa" }],
+  });
+  assert.deepEqual(erp.colors.map((c) => c.name), ["Preto"]);
+  assert.deepEqual(erp.variants.map((v) => v.color), ["Preto"]);
+  assert.deepEqual(erp.images, ["/uploads/p1.jpg"]);
+});
+
+test("Preço por cor: a cor usa o preço próprio e, sem ele, o do produto; o card avisa 'a partir de'", () => {
+  const product = {
+    price: "100.00",
+    compareAtPrice: null,
+    images: [],
+    colors: [
+      { name: "Preto", position: 0, images: ["/uploads/p.jpg"], price: "120.00", compareAtPrice: "150.00" },
+      { name: "Bege", position: 1, images: ["/uploads/b.jpg"], price: null, compareAtPrice: null },
+    ],
+    variants: [{ color: "Preto" }, { color: "Bege" }],
+  };
+  const page = withColorPhotos(product);
+  assert.deepEqual(page.colors.map((c) => [c.name, c.price, c.compareAtPrice]), [["Preto", "120.00", "150.00"], ["Bege", "100.00", null]]);
+  assert.equal(withFirstColorPhotos(product).priceFrom, true);
+  const same = withFirstColorPhotos({ ...product, colors: product.colors.map((c) => ({ ...c, price: null, compareAtPrice: null })) });
+  assert.equal(same.priceFrom, false);
+});

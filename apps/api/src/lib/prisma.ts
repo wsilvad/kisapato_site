@@ -14,6 +14,7 @@ export const prisma = new PrismaClient({
   adapter,
   omit: {
     product: { costPrice: true },
+    productColor: { costPrice: true },
     orderItem: { unitCost: true },
     order: { internalNote: true },
     profile: { passwordHash: true, twoFactorSecret: true },

@@ -1,5 +1,5 @@
 import { getAdminToken } from "@/lib/admin-session";
-import type { AdminStats, Address, Audience, Brand, Campaign, Capabilities, Category, CustomerStat, DashFilters, Facets, Inventory, Order, Overview, Paginated, Product, ProductClass, SavedCard, ShippingQuote, Showcase, SiteSettings, StockMovement, Story, User } from "@/types/product";
+import type { AdminStats, Address, Audience, Brand, Campaign, Capabilities, Category, CustomerStat, DashFilters, Facets, Inventory, Order, Overview, Paginated, Product, ProductClass, SavedCard, ShippingQuote, Showcase, PanelUser, SiteSettings, StockMovement, Story, User } from "@/types/product";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3333/api";
 /** Origem da API (sem /api), usada para servir as fotos enviadas em /uploads. */
@@ -198,6 +198,12 @@ export const api = {
       request<{ id: string; stock: number }>(`/admin/stock/${variantId}/adjust`, { method: "POST", json: { ...change, note } }),
     getSettings: () => request<SiteSettings>("/admin/settings"),
     saveSettings: (json: SiteSettings) => request<SiteSettings>("/admin/settings", { method: "PUT", json }),
+    pages: () => request<SiteSettings["pages"]>("/admin/pages"),
+    savePage: (slug: string, json: { title: string; body: string }) => request<SiteSettings["pages"][number]>(`/admin/pages/${slug}`, { method: "PUT", json }),
+    users: () => request<PanelUser[]>("/admin/users"),
+    createUser: (json: { name: string; email: string; password: string; permissions: string[] }) => request<PanelUser>("/admin/users", { method: "POST", json }),
+    updateUser: (id: string, json: { name: string; permissions: string[] }) => request<PanelUser>(`/admin/users/${id}`, { method: "PUT", json }),
+    setUserPassword: (id: string, password: string) => request<void>(`/admin/users/${id}/password`, { method: "POST", json: { password } }),
     create: <T>(resource: string, json: unknown) => request<T>(`/admin/${resource}`, { method: "POST", json }),
     update: <T>(resource: string, id: string, json: unknown) => request<T>(`/admin/${resource}/${id}`, { method: "PUT", json }),
     remove: (resource: string, id: string) => request<void>(`/admin/${resource}/${id}`, { method: "DELETE" }),

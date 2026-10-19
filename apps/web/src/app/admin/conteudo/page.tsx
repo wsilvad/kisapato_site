@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { Notice, PageHead, Switch, useAdminList } from "@/components/admin/kit";
-import { PagePhotos } from "@/components/admin/PagePhotos";
 import { PAYMENT_ICONS, PaymentIcon } from "@/components/PaymentIcons";
 import { api } from "@/lib/api";
 import { audienceHref } from "@/lib/segment";
@@ -13,7 +12,6 @@ const TABS = [
   ["promo", "Faixa promocional"],
   ["beneficios", "Benefícios"],
   ["rodape", "Rodapé"],
-  ["paginas", "Páginas"],
   ["frete", "Frete"],
 ] as const;
 type Tab = (typeof TABS)[number][0];
@@ -201,6 +199,14 @@ export default function ContentAdmin() {
               <label>Telefone / WhatsApp<input value={s.footer.phone} onChange={(e) => update({ footer: { ...s.footer, phone: e.target.value } })} /></label>
               <label>Horário de atendimento<input value={s.footer.hours} onChange={(e) => update({ footer: { ...s.footer, hours: e.target.value } })} /></label>
               <label>CNPJ<input value={s.footer.cnpj} onChange={(e) => update({ footer: { ...s.footer, cnpj: e.target.value } })} /></label>
+              <label>WhatsApp (com DDI e DDD)
+                <input value={s.footer.whatsapp ?? ""} placeholder="+5551998113318" onChange={(e) => update({ footer: { ...s.footer, whatsapp: e.target.value } })} />
+                <small>Mostra o botão do WhatsApp no canto da tela e no Fale conosco. Vazio = sem botão.</small>
+              </label>
+              <label>Mapa da loja (latitude,longitude)
+                <input value={s.footer.mapCoords ?? ""} placeholder="-29.830261,-50.5242959" onChange={(e) => update({ footer: { ...s.footer, mapCoords: e.target.value } })} />
+                <small>Coordenadas do Google Maps (o número após o @ no link do lugar). Mostra o mapa em Nossas lojas.</small>
+              </label>
             </fieldset>
             <fieldset>
               <legend>Formas de pagamento (logos no rodapé)</legend>
@@ -250,36 +256,6 @@ export default function ContentAdmin() {
             {s.footer.columns.length < 4 && (
               <button type="button" className="link-btn" onClick={() => update({ footer: { ...s.footer, columns: [...s.footer.columns, { title: "", links: [] }] } })}>+ Adicionar coluna de links</button>
             )}
-          </>
-        )}
-
-        {tab === "paginas" && (
-          <>
-            <p className="field-hint">
-              Páginas do rodapé (em /institucional/…). Separe os parágrafos com uma linha em branco; comece a linha com
-              &quot;## &quot; para um subtítulo e com &quot;- &quot; para um item de lista. Página sem texto fica fora do ar e some do rodapé.
-              Políticas de entrega mostra também a tabela da aba Frete.
-            </p>
-            <p className="field-hint">
-              Fotos: use o quadro &quot;Fotos da página&quot; abaixo de cada texto para enviar, trocar, mover e ajustar o tamanho; ele grava
-              linhas como ![descrição](/uploads/arquivo.jpg) no texto. Sobre a Ki Sapato: se a página começar com uma foto, ela vira o topo;
-              o 1º parágrafo vira a frase de destaque e cada &quot;## Rótulo | Título&quot; abre uma seção com um atalho no menu da página.
-            </p>
-            {(s.pages ?? []).map((page, i) => (
-              <fieldset key={page.slug}>
-                <legend>
-                  {page.title || page.slug}{" "}
-                  {page.body.trim() ? (
-                    <a href={`/institucional/${page.slug}`} target="_blank" rel="noopener noreferrer" className="link-btn">ver página ↗</a>
-                  ) : (
-                    <small>(fora do ar: sem texto)</small>
-                  )}
-                </legend>
-                <label className="span-2">Título<input value={page.title} onChange={(e) => update({ pages: patchList(s.pages, i, { title: e.target.value }) })} /></label>
-                <label className="span-2">Texto<textarea rows={10} value={page.body} onChange={(e) => update({ pages: patchList(s.pages, i, { body: e.target.value }) })} /></label>
-                <PagePhotos body={page.body} heroHint={page.slug === "quem-somos"} onChange={(body) => update({ pages: patchList(s.pages, i, { body }) })} />
-              </fieldset>
-            ))}
           </>
         )}
 

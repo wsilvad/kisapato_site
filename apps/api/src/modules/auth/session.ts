@@ -10,6 +10,7 @@ const publicUserSelect = {
   phone: true,
   cpf: true,
   role: true,
+  adminPermissions: true,
   tokenVersion: true,
   twoFactorEnabled: true,
   twoFactorOfferDismissedAt: true,
@@ -30,6 +31,8 @@ export function toPublicUser(p: UserRow) {
     phone: p.phone,
     cpf: p.cpf,
     role: p.role,
+    /** Áreas do painel liberadas (só para ADMIN; "*" = todas). */
+    ...(p.role === "ADMIN" && { permissions: p.adminPermissions }),
     twoFactorEnabled: p.twoFactorEnabled,
     /** Oferta pendente: a verificação em duas etapas ainda não foi ativada nem dispensada. */
     twoFactorOffer: !p.twoFactorEnabled && p.twoFactorOfferDismissedAt === null,

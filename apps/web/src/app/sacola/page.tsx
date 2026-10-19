@@ -28,7 +28,7 @@ export default function SacolaPage() {
             {l.image ? <img src={thumbUrl(l.image)} alt="" /> : <span className="cart-thumb" />}
             <div className="cart-info">
               <Link href={`/produtos/${l.slug}`}>{l.name}</Link>
-              <span>Cor {l.color} · Nº {l.size}</span>
+              <span>Cor {l.color} · {l.sizeLabel ? `Tam. ${l.sizeLabel}` : `Nº ${l.size}`}</span>
               <button type="button" className="link-btn" onClick={() => remove(l.variantId)}>Remover</button>
             </div>
             <input type="number" min={1} max={l.stock} value={l.quantity} aria-label="Quantidade"

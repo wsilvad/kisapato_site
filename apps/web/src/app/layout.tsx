@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import { Cormorant_Garamond, Jost } from "next/font/google";
+import { WhatsAppButton } from "@/components/WhatsAppButton";
 import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
 import { Providers } from "@/components/Providers";
 import { StoreFrame } from "@/components/StoreFrame";
+import { api } from "@/lib/api";
 import { loadSettings } from "@/lib/site-settings";
 import "./globals.css";
 
@@ -29,12 +31,13 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const settings = await loadSettings();
+  // categorias do menu já vêm prontas do servidor (sem esperar o navegador buscar); se a API falhar, o menu busca depois
+  const [settings, categories] = await Promise.all([loadSettings(), api.listCategories().catch(() => undefined)]);
   return (
     <html lang="pt-BR" className={`${serif.variable} ${sans.variable}`}>
       <body>
         <Providers freeShippingAbove={settings.shipping.freeAbove}>
-          <StoreFrame header={<Header topbar={settings.topbar} nav={settings.nav} social={settings.social} pages={settings.pages ?? []} />} footer={<Footer footer={settings.footer} social={settings.social} pages={settings.pages ?? []} />}>
+          <StoreFrame header={<Header topbar={settings.topbar} nav={settings.nav} social={settings.social} pages={settings.pages ?? []} categories={categories} />} footer={<Footer footer={settings.footer} social={settings.social} pages={settings.pages ?? []} />} floating={<WhatsAppButton number={settings.footer.whatsapp} />}>
             {children}
           </StoreFrame>
         </Providers>

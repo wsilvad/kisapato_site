@@ -4,16 +4,12 @@ import Link from "next/link";
 import { Logo } from "@/components/Logo";
 
 /**
- * Cabeçalho do painel, no mesmo padrão visual da loja (barra de aviso, faixa preta com a logo grande e links em
- * maiúsculas), mas sem o menu de produtos, a busca e a sacola. Sem `onSignOut` (tela de login) mostra só a logo.
+ * Cabeçalho do painel: faixa preta com a logo e os atalhos "Ver a loja" e "Sair" (sem o menu de produtos, a busca e
+ * a sacola da loja). Sem `onSignOut` (tela de login) mostra só a logo.
  */
-export function AdminHeader({ userName, onSignOut }: { userName?: string; onSignOut?: () => void }) {
+export function AdminHeader({ onSignOut }: { onSignOut?: () => void }) {
   return (
     <header className="header">
-      <div className="topbar">
-        <span>Painel administrativo</span>
-        {userName && <span>{userName}</span>}
-      </div>
       <div className="header-main">
         <Link href="/admin" className="header-logo" aria-label="Painel Ki Sapato — início">
           <Logo />

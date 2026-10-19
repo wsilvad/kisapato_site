@@ -55,7 +55,7 @@ export default function StockPage() {
               className="btn btn-outline btn-sm"
               onClick={() =>
                 downloadCsv("estoque.csv", ["Produto", "Cor", "Número", "SKU", "Categoria", "Marca", "Estoque", "Vendidos 30 dias", "Cobertura (dias)", "Preço", "Custo"],
-                  items.map((i) => [i.productName, i.color, i.size, i.sku, i.categoryName, i.brandName, i.stock, i.sold30, i.daysOfCover, i.price.toFixed(2), i.cost?.toFixed(2)]))
+                  items.map((i) => [i.productName, i.color, i.sizeLabel ?? i.size, i.sku, i.categoryName, i.brandName, i.stock, i.sold30, i.daysOfCover, i.price.toFixed(2), i.cost?.toFixed(2)]))
               }
             >
               Exportar CSV
@@ -105,7 +105,7 @@ export default function StockPage() {
                 <Fragment key={i.variantId}>
                   <tr className={i.productActive ? undefined : "is-off"}>
                     <td><strong>{i.productName}</strong><br /><small>{[i.brandName, i.categoryName].filter(Boolean).join(" · ")}{i.productActive ? "" : " · desativado"}</small></td>
-                    <td>{i.color} · {i.size}</td>
+                    <td>{i.color} · {i.sizeLabel ?? i.size}</td>
                     <td><small>{i.sku}</small></td>
                     <td className="num">
                       {i.status === "OUT" ? <Badge tone="off">Esgotado</Badge> : i.status === "LOW" ? <Badge tone="warn">{i.stock} (baixo)</Badge> : i.stock}

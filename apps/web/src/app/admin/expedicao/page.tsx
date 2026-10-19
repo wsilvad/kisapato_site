@@ -210,7 +210,7 @@ function OrderCard({ order: o, now, onChange, onError }: { order: Order; now: nu
                   <span>
                     <strong>{i.quantity}× {i.variant.product.name}</strong>
                     <br />
-                    <small>{i.variant.color} · nº {i.variant.size} · SKU {i.variant.sku}</small>
+                    <small>{i.variant.color} · {i.variant.sizeLabel ? `tam. ${i.variant.sizeLabel}` : `nº ${i.variant.size}`} · SKU {i.variant.sku}</small>
                   </span>
                 </label>
               </li>

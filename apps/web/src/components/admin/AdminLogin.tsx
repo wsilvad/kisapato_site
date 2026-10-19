@@ -20,6 +20,11 @@ export function AdminLogin({ onSignedIn }: { onSignedIn: (result: AuthResult) =>
       setError("Esta conta não tem acesso ao painel.");
       return;
     }
+    if (!result.user.permissions?.length) {
+      setChallenge(null);
+      setError("Seu acesso ao painel está desativado. Fale com o responsável pela loja.");
+      return;
+    }
     onSignedIn(result); // o AdminGate guarda a sessão da aba e mostra o painel
   }
 

@@ -17,6 +17,7 @@ export interface FilterState {
 }
 
 const SORTS = [
+  { value: "relevancia", label: "Relevância" },
   { value: "novidades", label: "Novidades" },
   { value: "menor-preco", label: "Menor preço" },
   { value: "maior-preco", label: "Maior preço" },
@@ -39,7 +40,8 @@ function buildUrl(fixed: Record<string, string>, state: FilterState, ordem: stri
   }
   if (state.min !== undefined) query.set("min", String(state.min));
   if (state.max !== undefined) query.set("max", String(state.max));
-  if (ordem !== "novidades") query.set("ordem", ordem);
+  // a ordem padrão (relevância na busca, novidades no resto) não vai para a URL
+  if (ordem !== (fixed.busca ? "relevancia" : "novidades")) query.set("ordem", ordem);
   return query.size ? `/produtos?${query}` : "/produtos";
 }
 
@@ -92,7 +94,7 @@ export function ProductFilters({ facets, state, fixed, ordem, total }: Props) {
           <label className="shop-sort">
             Ordenar
             <select value={ordem} onChange={(e) => go(state, e.target.value)}>
-              {SORTS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
+              {SORTS.filter((s) => s.value !== "relevancia" || fixed.busca).map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
             </select>
           </label>
           <button type="button" className="btn btn-outline btn-sm shop-filter-btn" onClick={() => setOpen(true)} disabled={!facets}>

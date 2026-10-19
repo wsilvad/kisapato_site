@@ -22,7 +22,7 @@ stockRouter.get("/movements", async (req, res) => {
   res.json(
     await prisma.stockMovement.findMany({
       where: variantId ? { variantId } : {},
-      include: { variant: { select: { sku: true, color: true, size: true, product: { select: { name: true } } } } },
+      include: { variant: { select: { sku: true, color: true, size: true, sizeLabel: true, product: { select: { name: true } } } } },
       orderBy: { createdAt: "desc" },
       take: limit,
     }),
