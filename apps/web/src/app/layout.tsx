@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Cormorant_Garamond, Jost } from "next/font/google";
+import localFont from "next/font/local";
 import { WhatsAppButton } from "@/components/WhatsAppButton";
 import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
@@ -9,16 +9,19 @@ import { api } from "@/lib/api";
 import { loadSettings } from "@/lib/site-settings";
 import "./globals.css";
 
-const serif = Cormorant_Garamond({
-  subsets: ["latin"],
-  weight: ["400", "500", "600"],
-  style: ["normal", "italic"],
+// Fontes hospedadas aqui (src/app/fonts): o build da Discloud não resolvia o next/font/google (ver fonts/README.md).
+const serif = localFont({
+  src: [
+    { path: "./fonts/cormorant-garamond-normal.woff2", weight: "400 600", style: "normal" },
+    { path: "./fonts/cormorant-garamond-italic.woff2", weight: "400 600", style: "italic" },
+  ],
   variable: "--font-cormorant",
   display: "swap",
 });
 
-const sans = Jost({
-  subsets: ["latin"],
+const sans = localFont({
+  src: "./fonts/jost.woff2",
+  weight: "100 900",
   variable: "--font-jost",
   display: "swap",
 });
