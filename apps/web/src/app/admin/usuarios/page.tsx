@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { PasswordInput } from "@/components/account/PasswordInput";
-import { Badge, ConfirmButton, EmptyState, Notice, PageHead } from "@/components/admin/kit";
+import { Badge, ConfirmButton, EmptyState, Notice, PageHead, RowOpen, useBackToList } from "@/components/admin/kit";
 import { api } from "@/lib/api";
 import { FULL_ACCESS, PERMISSION_GROUPS, permissionSummary } from "@/lib/permissions";
 import { passwordChecks } from "@/lib/validators";
@@ -56,6 +56,7 @@ export default function UsersAdmin() {
   const [users, setUsers] = useState<PanelUser[] | null>(null);
   const [me, setMe] = useState<string | null>(null);
   const [form, setForm] = useState<FormState | null>(null);
+  useBackToList(form !== null, () => setForm(null));
   const [newPassword, setNewPassword] = useState({ password: "", confirm: "" });
   const [error, setError] = useState("");
   const [ok, setOk] = useState("");
@@ -73,6 +74,7 @@ export default function UsersAdmin() {
     setError("");
     setOk("");
   };
+  const edit = (u: PanelUser) => open({ id: u.id, name: u.name ?? "", email: u.email, password: "", confirm: "", permissions: u.permissions });
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
@@ -200,12 +202,12 @@ export default function UsersAdmin() {
                 const off = u.permissions.length === 0;
                 return (
                   <tr key={u.id} className={off ? "is-off" : undefined}>
-                    <td><strong>{u.name ?? "—"}</strong>{u.id === me && <small> (você)</small>}</td>
+                    <td><RowOpen label={u.name ?? u.email} onOpen={() => edit(u)}><strong>{u.name ?? "—"}</strong></RowOpen>{u.id === me && <small> (você)</small>}</td>
                     <td>{u.email}</td>
                     <td>{off ? <Badge tone="off">Desativado</Badge> : u.permissions.includes(FULL_ACCESS) ? <Badge tone="ok">Acesso total</Badge> : <small>{permissionSummary(u.permissions)}</small>}</td>
                     <td>{u.twoFactorEnabled ? <Badge tone="ok">Ativa</Badge> : <small>—</small>}</td>
                     <td className="row-actions">
-                      <button type="button" className="link-btn" onClick={() => open({ id: u.id, name: u.name ?? "", email: u.email, password: "", confirm: "", permissions: u.permissions })}>Editar</button>
+                      <button type="button" className="link-btn" onClick={() => edit(u)}>Editar</button>
                     </td>
                   </tr>
                 );

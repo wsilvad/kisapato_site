@@ -50,6 +50,61 @@ export function Thumb({ url, wide }: { url: string | null | undefined; wide?: bo
   return src ? <img className={className} src={src} alt="" /> : <span className={`${className} thumb-empty`} />;
 }
 
+/**
+ * Nome ou imagem de uma linha da lista como atalho para a edição (o mesmo que o botão "Editar" da linha). É um botão de verdade:
+ * funciona com o teclado e o leitor de tela lê "Editar <nome>".
+ */
+export function RowOpen({ onOpen, label, children }: { onOpen: () => void; label: string; children: React.ReactNode }) {
+  return (
+    <button type="button" className="row-open" aria-label={`Editar ${label}`} title={`Editar ${label}`} onClick={onOpen}>
+      {children}
+    </button>
+  );
+}
+
+/**
+ * `history.back()` feito por nós (ao fechar o formulário pela tela) gera um popstate que não deve fechar nada. Um ouvinte fixo,
+ * registrado antes dos ouvintes de cada formulário, marca esse evento; os formulários o ignoram.
+ */
+let swallow = 0;
+let swallowing = false;
+if (typeof window !== "undefined") {
+  window.addEventListener("popstate", () => {
+    swallowing = swallow > 0;
+    if (swallowing) swallow--;
+  });
+}
+
+/**
+ * Formulário de edição aberto dentro da lista (sem mudar de endereço): o botão Voltar do navegador fecha o formulário e
+ * volta para a lista, em vez de sair da tela (que levava ao Indicadores). Abrir o formulário cria uma entrada no histórico;
+ * fechar pelo botão da tela (Voltar à lista, Salvar, Cancelar) desfaz essa entrada.
+ */
+export function useBackToList(open: boolean, close: () => void) {
+  const closeRef = useRef(close);
+  useEffect(() => {
+    closeRef.current = close;
+  });
+  useEffect(() => {
+    if (!open) return;
+    let popped = false;
+    window.history.pushState({ adminForm: true }, "");
+    const onPop = () => {
+      if (swallowing) return;
+      popped = true;
+      closeRef.current();
+    };
+    window.addEventListener("popstate", onPop);
+    return () => {
+      window.removeEventListener("popstate", onPop);
+      if (!popped) {
+        swallow++;
+        window.history.back();
+      }
+    };
+  }, [open]);
+}
+
 export function PageHead({ title, hint, action }: { title: string; hint?: string; action?: React.ReactNode }) {
   return (
     <div className="admin-head">

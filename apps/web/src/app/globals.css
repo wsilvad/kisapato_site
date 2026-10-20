@@ -1996,3 +1996,9 @@ tr.is-issue td { background: #fffaf0; }
 /* Cor desabilitada no formulário do produto (à venda / desabilitada) */
 .color-item.is-off .color-item-title strong { color: var(--muted); }
 .switch input:disabled + .switch-track { opacity: 0.45; cursor: not-allowed; }
+
+/* Nome e imagem de uma linha como atalho para editar (mesmo que o botão "Editar") */
+.row-open { display: inline-block; max-width: 100%; margin: 0; padding: 0; border: 0; background: none; color: inherit; font: inherit; letter-spacing: inherit; text-align: left; cursor: pointer; }
+.row-open:hover strong { text-decoration: underline; }
+.row-open:hover .thumb, .row-open:hover .thumb-crop, .row-open:hover .story-thumb { outline: 2px solid var(--ink); outline-offset: 1px; }
+.row-open:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; border-radius: 2px; }

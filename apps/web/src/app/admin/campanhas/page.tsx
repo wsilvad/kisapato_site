@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Badge, ConfirmButton, EmptyState, ImageField, MoveButtons, Notice, PageHead, Switch, formatDateTime, reorder, toLocalInput, useAdminList } from "@/components/admin/kit";
+import { Badge, ConfirmButton, EmptyState, ImageField, MoveButtons, Notice, PageHead, RowOpen, Switch, formatDateTime, reorder, toLocalInput, useAdminList, useBackToList } from "@/components/admin/kit";
 import { CropEditor } from "@/components/admin/CropEditor";
 import { LinkPicker } from "@/components/admin/LinkPicker";
 import { api, assetUrl } from "@/lib/api";
@@ -62,6 +62,7 @@ function situation(c: Campaign): { tone: "ok" | "warn" | "off"; label: string } 
 export default function CampaignsAdmin() {
   const { items, loading, error, setError, reload } = useAdminList<Campaign>("campaigns");
   const [form, setForm] = useState<FormState | null>(null);
+  useBackToList(form !== null, () => setForm(null));
 
   const run = async (action: () => Promise<unknown>) => {
     try {
@@ -108,8 +109,8 @@ export default function CampaignsAdmin() {
                 return (
                   <tr key={c.id} className={s.tone === "off" ? "is-off" : undefined}>
                     <td><MoveButtons index={i} total={items.length} onMove={(d) => run(() => reorder(items, i, d, save))} /></td>
-                    <td><CampaignThumb campaign={c} /></td>
-                    <td><strong>{c.title}</strong>{c.eyebrow && <><br /><small>{c.eyebrow}</small></>}</td>
+                    <td><RowOpen label={c.title} onOpen={() => setForm(fromCampaign(c))}><CampaignThumb campaign={c} /></RowOpen></td>
+                    <td><RowOpen label={c.title} onOpen={() => setForm(fromCampaign(c))}><strong>{c.title}</strong></RowOpen>{c.eyebrow && <><br /><small>{c.eyebrow}</small></>}</td>
                     <td><Badge tone={s.tone}>{s.label}</Badge>{c.endsAt && s.tone === "ok" && <><br /><small>até {formatDateTime(c.endsAt)}</small></>}</td>
                     <td className="row-actions">
                       <button type="button" className="link-btn" onClick={() => setForm(fromCampaign(c))}>Editar</button>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Badge, ConfirmButton, EmptyState, ImageField, MoveButtons, Notice, PageHead, RowSwitch, Switch, SlugField, reorder, slugify, useAdminList, Thumb } from "@/components/admin/kit";
+import { Badge, ConfirmButton, EmptyState, ImageField, MoveButtons, Notice, PageHead, RowOpen, RowSwitch, Switch, SlugField, reorder, slugify, useAdminList, Thumb, useBackToList } from "@/components/admin/kit";
 import { api } from "@/lib/api";
 import type { Category, ProductClass } from "@/types/product";
 
@@ -22,6 +22,8 @@ export default function CategoriesAdmin() {
   const { items, setItems, loading, error, setError, reload } = useAdminList<Category>("categories");
   const classes = useAdminList<ProductClass>("classes").items;
   const [form, setForm] = useState<FormState | null>(null);
+  useBackToList(form !== null, () => setForm(null));
+  const openEdit = (c: Category) => setForm({ id: c.id, name: c.name, slug: c.slug, slugTouched: true, classId: c.classId ?? "", imageUrl: c.imageUrl ?? null, sortOrder: c.sortOrder ?? 0, showOnHome: c.showOnHome ?? false });
 
   const run = async (action: () => Promise<unknown>) => {
     try {
@@ -82,8 +84,8 @@ export default function CategoriesAdmin() {
                 return (
                   <tr key={c.id} className={c.active === false ? "is-off" : undefined}>
                     <td><MoveButtons index={i} total={items.length} onMove={(d) => run(() => reorder(items, i, d, save))} /></td>
-                    <td><Thumb url={c.imageUrl} /></td>
-                    <td><strong>{c.name}</strong></td>
+                    <td><RowOpen label={c.name} onOpen={() => openEdit(c)}><Thumb url={c.imageUrl} /></RowOpen></td>
+                    <td><RowOpen label={c.name} onOpen={() => openEdit(c)}><strong>{c.name}</strong></RowOpen></td>
                     <td>{c.productClass?.name ?? <Badge tone="warn">Sem classe</Badge>}</td>
                     <td>{c._count?.products ?? 0}</td>
                     <td>{c.showOnHome ? <Badge tone="ok">Sim</Badge> : <Badge>Não</Badge>}</td>
@@ -95,7 +97,7 @@ export default function CategoriesAdmin() {
                       {c.active !== false && c.productClass?.active === false && <><br /><small>classe {c.productClass.name} desativada</small></>}
                     </td>
                     <td className="row-actions">
-                      <button type="button" className="link-btn" onClick={() => setForm({ id: c.id, name: c.name, slug: c.slug, slugTouched: true, classId: c.classId ?? "", imageUrl: c.imageUrl ?? null, sortOrder: c.sortOrder ?? 0, showOnHome: c.showOnHome ?? false })}>Editar</button>
+                      <button type="button" className="link-btn" onClick={() => openEdit(c)}>Editar</button>
                       <ConfirmButton message="Excluir categoria?" onConfirm={() => run(() => api.admin.remove("categories", c.id))}>Excluir</ConfirmButton>
                     </td>
                   </tr>

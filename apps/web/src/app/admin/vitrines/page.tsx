@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Badge, ConfirmButton, EmptyState, MoveButtons, Notice, PageHead, Switch, reorder, useAdminList } from "@/components/admin/kit";
+import { Badge, ConfirmButton, EmptyState, MoveButtons, Notice, PageHead, RowOpen, Switch, reorder, useAdminList, useBackToList } from "@/components/admin/kit";
 import { api } from "@/lib/api";
 import { isVisible } from "@/lib/visibility";
 import { BADGE_LABEL, type BadgeKey, type Product, type Showcase } from "@/types/product";
@@ -22,6 +22,7 @@ export default function ShowcasesAdmin() {
   const { items, loading, error, setError, reload } = useAdminList<Showcase>("showcases");
   const products = useAdminList<Product>("products").items;
   const [form, setForm] = useState<FormState | null>(null);
+  useBackToList(form !== null, () => setForm(null));
 
   /** Quantos produtos à venda carregam cada selo, para avisar quando uma vitrine ficaria vazia. */
   const countByBadge = useMemo(() => {
@@ -75,7 +76,7 @@ export default function ShowcasesAdmin() {
                 return (
                   <tr key={s.id} className={s.active ? undefined : "is-off"}>
                     <td><MoveButtons index={i} total={items.length} onMove={(d) => run(() => reorder(items, i, d, (x) => api.admin.update("showcases", x.id, body(fromShowcase(x)))))} /></td>
-                    <td><strong>{s.title}</strong></td>
+                    <td><RowOpen label={s.title} onOpen={() => setForm(fromShowcase(s))}><strong>{s.title}</strong></RowOpen></td>
                     <td>Produtos com selo “{BADGE_LABEL[s.selectionRule]}”</td>
                     <td>{Math.min(available, s.itemLimit)} de {s.itemLimit}{available === 0 && <> <Badge tone="warn">Sem produtos</Badge></>}</td>
                     <td>{s.active ? <Badge tone="ok">Ativa</Badge> : <Badge tone="off">Desativada</Badge>}</td>

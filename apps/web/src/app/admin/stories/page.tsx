@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Badge, ConfirmButton, EmptyState, MediaField, MoveButtons, Notice, PageHead, RowSwitch, Switch, reorder, useAdminList } from "@/components/admin/kit";
+import { Badge, ConfirmButton, EmptyState, MediaField, MoveButtons, Notice, PageHead, RowOpen, RowSwitch, Switch, reorder, useAdminList, useBackToList } from "@/components/admin/kit";
 import { api, assetUrl } from "@/lib/api";
 import { isVideoUrl } from "@/lib/media";
 import type { Product, Story } from "@/types/product";
@@ -22,6 +22,7 @@ export default function StoriesAdmin() {
   const { items, setItems, loading, error, setError, reload } = useAdminList<Story>("stories");
   const products = useAdminList<Product>("products").items;
   const [form, setForm] = useState<FormState | null>(null);
+  useBackToList(form !== null, () => setForm(null));
 
   const run = async (action: () => Promise<unknown>) => {
     try {
@@ -78,14 +79,16 @@ export default function StoriesAdmin() {
                 <tr key={s.id} className={s.active ? undefined : "is-off"}>
                   <td><MoveButtons index={i} total={items.length} onMove={(d) => run(() => reorder(items, i, d, (x) => api.admin.update("stories", x.id, body(fromStory(x)))))} /></td>
                   <td>
-                    {isVideoUrl(s.mediaUrl) ? (
-                      <video className="story-thumb" src={assetUrl(s.mediaUrl)} muted loop autoPlay playsInline />
-                    ) : (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img className="story-thumb" src={assetUrl(s.mediaUrl)} alt="" />
-                    )}
+                    <RowOpen label={s.title || "story"} onOpen={() => setForm(fromStory(s))}>
+                      {isVideoUrl(s.mediaUrl) ? (
+                        <video className="story-thumb" src={assetUrl(s.mediaUrl)} muted loop autoPlay playsInline />
+                      ) : (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img className="story-thumb" src={assetUrl(s.mediaUrl)} alt="" />
+                      )}
+                    </RowOpen>
                   </td>
-                  <td><strong>{s.title || <small>(sem legenda)</small>}</strong><br /><small>{s.linkUrl || "Sem link: o cartão não é clicável"}</small></td>
+                  <td><RowOpen label={s.title || "story"} onOpen={() => setForm(fromStory(s))}><strong>{s.title || <small>(sem legenda)</small>}</strong></RowOpen><br /><small>{s.linkUrl || "Sem link: o cartão não é clicável"}</small></td>
                   <td>
                     <span className="active-cell">
                       <RowSwitch checked={s.active} label={`${s.active ? "Desativar" : "Ativar"} story`} onChange={(v) => setActive(s, v)} />

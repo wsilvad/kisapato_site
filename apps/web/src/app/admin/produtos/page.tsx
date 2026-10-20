@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { Badge, ConfirmButton, EmptyState, ImageGallery, Notice, PageHead, RowSwitch, SearchSelect, SlugField, Switch, slugify, useAdminList, Thumb, type SearchOption } from "@/components/admin/kit";
+import { Badge, ConfirmButton, EmptyState, ImageGallery, Notice, PageHead, RowOpen, RowSwitch, SearchSelect, SlugField, Switch, slugify, useAdminList, Thumb, type SearchOption, useBackToList } from "@/components/admin/kit";
 import { api } from "@/lib/api";
 import { useErpRefresh } from "@/lib/erp-refresh";
 import { formatPrice } from "@/lib/format";
@@ -321,6 +321,7 @@ export default function ProductsAdmin() {
   const classes = useAdminList<ProductClass>("classes").items;
   const categories = categoryList.items;
   const [form, setForm] = useState<FormState | null>(null);
+  useBackToList(form !== null, () => setForm(null));
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<"all" | "active" | "inactive">("active");
   const erp = useErpRefresh();
@@ -486,8 +487,8 @@ export default function ProductsAdmin() {
                 const stock = p.variants?.reduce((sum, v) => sum + v.stock, 0) ?? 0;
                 return (
                   <tr key={p.id} className={p.active === false ? "is-off" : undefined}>
-                    <td><Thumb url={p.images[0] ?? p.colors?.find((c) => c.images.length > 0)?.images[0]} /></td>
-                    <td><strong>{p.name}</strong>{issueOf.has(p.id) && <> <IssueIcon reason={issueOf.get(p.id)!.reason} /></>}{p.badge && <> <Badge tone="warn">{BADGE_LABEL[p.badge]}</Badge></>}<br /><small>{[p.brand?.name, p.reference].filter(Boolean).join(" · ") || p.slug}</small></td>
+                    <td><RowOpen label={p.name} onOpen={() => edit(p)}><Thumb url={p.images[0] ?? p.colors?.find((c) => c.images.length > 0)?.images[0]} /></RowOpen></td>
+                    <td><RowOpen label={p.name} onOpen={() => edit(p)}><strong>{p.name}</strong></RowOpen>{issueOf.has(p.id) && <> <IssueIcon reason={issueOf.get(p.id)!.reason} /></>}{p.badge && <> <Badge tone="warn">{BADGE_LABEL[p.badge]}</Badge></>}<br /><small>{[p.brand?.name, p.reference].filter(Boolean).join(" · ") || p.slug}</small></td>
                     <td>{p.category.productClass?.name && <small>{p.category.productClass.name} › </small>}{p.category.name}<br /><small>{segmentLabel(p.ageGroup, p.gender)}</small></td>
                     <td>{formatPrice(p.price)}{p.compareAtPrice && <><br /><small className="strike">{formatPrice(p.compareAtPrice)}</small></>}</td>
                     <td className="stock-cell">

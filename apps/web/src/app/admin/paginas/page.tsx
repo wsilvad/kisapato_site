@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Badge, EmptyState, Notice, PageHead } from "@/components/admin/kit";
+import { Badge, EmptyState, Notice, PageHead, RowOpen, useBackToList } from "@/components/admin/kit";
 import { PagePhotos } from "@/components/admin/PagePhotos";
 import { api } from "@/lib/api";
 import type { SiteSettings } from "@/types/product";
@@ -24,6 +24,7 @@ const EXTRA: Record<string, string> = {
 export default function PagesAdmin() {
   const [pages, setPages] = useState<Page[] | null>(null);
   const [editing, setEditing] = useState<Page | null>(null);
+  useBackToList(editing !== null, () => setEditing(null));
   const [error, setError] = useState("");
   const [ok, setOk] = useState("");
   const [saving, setSaving] = useState(false);
@@ -94,7 +95,7 @@ export default function PagesAdmin() {
                 const live = p.body.trim().length > 0;
                 return (
                   <tr key={p.slug} className={live ? undefined : "is-off"}>
-                    <td><strong>{p.title}</strong></td>
+                    <td><RowOpen label={p.title} onOpen={() => (setEditing(p), setOk(""), setError(""))}><strong>{p.title}</strong></RowOpen></td>
                     <td><small>/institucional/{p.slug}</small></td>
                     <td>{live ? <Badge tone="ok">No ar</Badge> : <Badge tone="off">Sem texto (fora do ar)</Badge>}</td>
                     <td className="row-actions">

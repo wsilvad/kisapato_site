@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Badge, ConfirmButton, EmptyState, ImageField, MoveButtons, Notice, PageHead, RowSwitch, SlugField, Thumb, reorder, slugify, useAdminList } from "./kit";
+import { Badge, ConfirmButton, EmptyState, ImageField, MoveButtons, Notice, PageHead, RowOpen, RowSwitch, SlugField, Thumb, reorder, slugify, useAdminList, useBackToList } from "./kit";
 import { api } from "@/lib/api";
 import { AGE_GROUP_LABEL, GENDER_LABEL, KIDS_GENDER_LABEL, audienceHref, type AgeGroup, type Gender } from "@/lib/segment";
 
@@ -59,7 +59,9 @@ function segmentText(i: Pick<Item, "ageGroup" | "gender">) {
 export function TaxonomyAdmin({ resource, title, hint, noun, newLabel, usage, deleteMessage, placeholder, activatable, imageHint, segment = false }: Props) {
   const { items, setItems, loading, error, setError, reload } = useAdminList<Item>(resource);
   const [editing, setEditing] = useState<(Fields & { id?: string; slugTouched: boolean }) | null>(null);
+  useBackToList(editing !== null, () => setEditing(null));
   const opts = { image: !!imageHint, segment };
+  const startEdit = (item: Item) => setEditing({ id: item.id, name: item.name, slug: item.slug, slugTouched: true, sortOrder: item.sortOrder, imageUrl: item.imageUrl, ageGroup: item.ageGroup, gender: item.gender });
   const [formError, setFormError] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -162,8 +164,8 @@ export function TaxonomyAdmin({ resource, title, hint, noun, newLabel, usage, de
               {items.map((item, i) => (
                 <tr key={item.id} className={item.active === false ? "is-off" : undefined}>
                   <td><MoveButtons index={i} total={items.length} onMove={(d) => run(() => reorder(items, i, d, (x) => api.admin.update(resource, x.id, body(x, opts))))} /></td>
-                  {imageHint && <td><Thumb url={item.imageUrl} /></td>}
-                  <td><strong>{item.name}</strong><br /><small>{segment ? segmentText(item) : item.slug}</small></td>
+                  {imageHint && <td><RowOpen label={item.name} onOpen={() => startEdit(item)}><Thumb url={item.imageUrl} /></RowOpen></td>}
+                  <td><RowOpen label={item.name} onOpen={() => startEdit(item)}><strong>{item.name}</strong></RowOpen><br /><small>{segment ? segmentText(item) : item.slug}</small></td>
                   <td>{item._count?.[usage.key] ?? 0}</td>
                   {activatable && (
                     <td>
@@ -174,7 +176,7 @@ export function TaxonomyAdmin({ resource, title, hint, noun, newLabel, usage, de
                     </td>
                   )}
                   <td className="row-actions">
-                    <button type="button" className="link-btn" onClick={() => setEditing({ id: item.id, name: item.name, slug: item.slug, slugTouched: true, sortOrder: item.sortOrder, imageUrl: item.imageUrl, ageGroup: item.ageGroup, gender: item.gender })}>Editar</button>
+                    <button type="button" className="link-btn" onClick={() => startEdit(item)}>Editar</button>
                     <ConfirmButton message={deleteMessage} onConfirm={() => run(() => api.admin.remove(resource, item.id))}>Excluir</ConfirmButton>
                   </td>
                 </tr>
