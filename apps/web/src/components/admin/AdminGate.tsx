@@ -6,6 +6,7 @@ import { AdminLogin } from "@/components/admin/AdminLogin";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { clearAdminToken, getAdminToken, setAdminToken } from "@/lib/admin-session";
 import { api, type AuthResult } from "@/lib/api";
+import { ErpRefreshProvider } from "@/lib/erp-refresh";
 import type { User } from "@/types/product";
 
 type State = { status: "checking" } | { status: "out" } | { status: "in"; user: User };
@@ -66,7 +67,7 @@ export function AdminGate({ children }: { children: React.ReactNode }) {
         router.push("/");
       }}
     >
-      {children}
+      <ErpRefreshProvider>{children}</ErpRefreshProvider>
     </AdminShell>
   );
 }

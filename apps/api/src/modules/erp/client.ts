@@ -37,7 +37,32 @@ function endpoint() {
 /** A atualização pelo painel só precisa saber se há ERP configurado antes de começar. */
 export const erpConfigured = () => !!process.env.ERP_URL;
 
-async function call(operation: string, params: Record<string, string>): Promise<XmlObject[]> {
+/**
+ * Quantas chamadas ao ERP podem estar abertas ao mesmo tempo. Medido em 2026-10-20: com 8 ou mais em paralelo o serviço
+ * passa a responder listas VAZIAS (sem erro), o que faria a atualização perder itens e zerar estoque; com até 4 a resposta
+ * é sempre a mesma. Vale para todas as chamadas do processo.
+ */
+const MAX_PARALLEL = 4;
+let open = 0;
+const waiting: (() => void)[] = [];
+async function slot<T>(fn: () => Promise<T>): Promise<T> {
+  // com a fila cheia, espera; quem termina passa a vaga direto para o próximo (sem "open--"), então nunca passa de 4
+  if (open >= MAX_PARALLEL) await new Promise<void>((resolve) => waiting.push(resolve));
+  else open++;
+  try {
+    return await fn();
+  } finally {
+    const next = waiting.shift();
+    if (next) next();
+    else open--;
+  }
+}
+
+function call(operation: string, params: Record<string, string>): Promise<XmlObject[]> {
+  return slot(() => request(operation, params));
+}
+
+async function request(operation: string, params: Record<string, string>): Promise<XmlObject[]> {
   const body = Object.entries(params).map(([k, v]) => `<${k}>${v.replace(/[<>&]/g, "")}</${k}>`).join("");
   const envelope = `<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:web="http://webservice.macle.com/"><soapenv:Header/><soapenv:Body><web:${operation}>${body}</web:${operation}></soapenv:Body></soapenv:Envelope>`;
   const res = await fetch(endpoint(), { method: "POST", headers: { "Content-Type": "text/xml; charset=utf-8", SOAPAction: '""' }, body: envelope, signal: AbortSignal.timeout(30_000) });
@@ -91,7 +116,9 @@ export const isSiteFlagged = (item: Pick<ErpItem, "siteClass">) => item.siteClas
 
 /** Estoque por tamanho (codTamanho → quantidade somada de todas as lojas; o ERP aceita saldo negativo). */
 export async function getStock(code: string): Promise<Map<string, number>> {
-  const rows = await call("getEstoqueItem", { codItem: code });
+  let rows = await call("getEstoqueItem", { codItem: code });
+  // resposta vazia pode ser "sem estoque" ou o ERP sobrecarregado: confere uma vez antes de zerar o estoque do site
+  if (rows.length === 0) rows = await call("getEstoqueItem", { codItem: code });
   const stock = new Map<string, number>();
   for (const r of rows) stock.set(text(r.codTamanho), (stock.get(text(r.codTamanho)) ?? 0) + num(text(r.qtd)));
   return stock;

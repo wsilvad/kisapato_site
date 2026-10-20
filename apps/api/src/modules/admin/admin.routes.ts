@@ -4,7 +4,7 @@ import { prisma } from "../../lib/prisma.js";
 import { AppError } from "../../lib/errors.js";
 import { requireAdmin, requirePanelPermission } from "../../middlewares/auth.js";
 import { erpConfigured } from "../erp/client.js";
-import { listIssues, refreshFromErp } from "../erp/sync.js";
+import { getRefreshStatus, listIssues, startRefresh } from "../erp/sync.js";
 import { getSiteSettings, saveSiteSettings } from "../settings/settings.service.js";
 import { recordMovement } from "../stock/stock.service.js";
 import { stockRouter } from "../stock/stock.routes.js";
@@ -213,7 +213,7 @@ const productBody = z.object({
   variants: z.array(variantBody).default([]),
   /** Fotos de cada cor (até 4); a ordem da lista é a ordem das cores na loja, e a primeira abre a página do produto. */
   colors: z
-    .array(z.object({ name: z.string().trim().min(1), price: money.nullish(), compareAtPrice: money.nullish(), images: z.array(z.string().min(1)).max(MAX_COLOR_PHOTOS, `Cada cor aceita no máximo ${MAX_COLOR_PHOTOS} fotos.`).default([]) }))
+    .array(z.object({ name: z.string().trim().min(1), price: money.nullish(), compareAtPrice: money.nullish(), active: z.boolean().optional(), images: z.array(z.string().min(1)).max(MAX_COLOR_PHOTOS, `Cada cor aceita no máximo ${MAX_COLOR_PHOTOS} fotos.`).default([]) }))
     .default([]),
 });
 
@@ -225,7 +225,7 @@ function colorRows(colors: z.infer<typeof productBody>["colors"], variants: { co
   const seen = new Set<string>();
   return colors
     .filter((c) => valid.has(c.name) && !seen.has(c.name) && seen.add(c.name))
-    .map((c, position) => ({ name: c.name, position, images: c.images, price: c.price ?? null, compareAtPrice: c.price != null ? (c.compareAtPrice ?? null) : null }));
+    .map((c, position) => ({ name: c.name, position, active: c.active, images: c.images, price: c.price ?? null, compareAtPrice: c.price != null ? (c.compareAtPrice ?? null) : null }));
 }
 /** No admin o produto vem com o custo (omitido por padrão no cliente do Prisma). */
 const withCost = { omit: { costPrice: false } } as const;
@@ -234,10 +234,17 @@ const withCost = { omit: { costPrice: false } } as const;
 const withSkus = (productSlug: string, variants: z.infer<typeof variantBody>[]) =>
   variants.map((v) => ({ ...v, sku: v.sku || [productSlug, toSlug(v.color), v.size].join("-") }));
 
-/** Botão "Atualizar do ERP": traz os itens marcados para o site (produtos novos entram desativados) e confere os já importados. */
+/**
+ * Botão "Atualizar do ERP": começa em segundo plano (traz os itens marcados para o site; produtos novos entram desativados)
+ * e responde na hora com o andamento. Se já houver uma rodando, só devolve o andamento dela.
+ */
 adminRouter.post("/products/erp-refresh", async (_req, res) => {
   if (!erpConfigured()) throw new AppError("A integração com o ERP não está configurada neste servidor (falta ERP_URL).", 503);
-  res.json(await refreshFromErp());
+  res.status(202).json(startRefresh());
+});
+/** Andamento e resultado da última atualização (a tela consulta enquanto roda, inclusive depois de recarregar). */
+adminRouter.get("/products/erp-refresh", async (_req, res) => {
+  res.json(getRefreshStatus());
 });
 
 /** Pendências da importação do ERP (aviso "precisam da sua atenção" em Produtos). */
@@ -290,6 +297,17 @@ adminRouter.put("/products/:id", async (req, res) => {
   const kept = variants.map((v) => ({ size: v.size, color: v.color }));
   const product = await prisma.$transaction(async (tx) => {
     const before = await tx.productVariant.findMany({ where: { productId: id }, select: { size: true, color: true, stock: true } });
+    // À venda / desabilitada por cor: cor do ERP que o ERP não marca não pode ser habilitada; as demais seguem o que veio do painel.
+    const prevColors = new Map((await tx.productColor.findMany({ where: { productId: id }, select: { name: true, active: true, erpFlagged: true, erpItemCode: true } })).map((c) => [c.name, c]));
+    const activeOf = (c: { name: string; active?: boolean }) => {
+      const prev = prevColors.get(c.name);
+      if (prev?.erpItemCode && !prev.erpFlagged) return false;
+      return c.active ?? prev?.active ?? true;
+    };
+    const colorsResolved = colors.map((c) => ({ ...c, active: activeOf(c) }));
+    // cor desabilitada não tem estoque vendável (a loja, os filtros e a sacola usam o estoque das numerações)
+    const off = new Set(colorsResolved.filter((c) => !c.active).map((c) => c.name));
+    const variantsFinal = variants.map((v) => (off.has(v.color) ? { ...v, stock: 0 } : v));
     await tx.productVariant.deleteMany({
       where: { productId: id, orderItems: { none: {} }, ...(kept.length > 0 && { NOT: { OR: kept } }) },
     });
@@ -298,7 +316,7 @@ adminRouter.put("/products/:id", async (req, res) => {
       data: {
         ...data,
         variants: {
-          upsert: variants.map((v) => ({
+          upsert: variantsFinal.map((v) => ({
             where: { productId_size_color: { productId: id, size: v.size, color: v.color } },
             update: { sku: v.sku, stock: v.stock, sizeLabel: v.sizeLabel ?? null },
             create: v,
@@ -306,9 +324,9 @@ adminRouter.put("/products/:id", async (req, res) => {
         },
         colors: {
           deleteMany: { name: { notIn: colors.map((c) => c.name) } },
-          upsert: colors.map((c) => ({
+          upsert: colorsResolved.map((c) => ({
             where: { productId_name: { productId: id, name: c.name } },
-            update: { position: c.position, images: c.images, price: c.price, compareAtPrice: c.compareAtPrice },
+            update: { position: c.position, active: c.active, images: c.images, price: c.price, compareAtPrice: c.compareAtPrice },
             create: c,
           })),
         },

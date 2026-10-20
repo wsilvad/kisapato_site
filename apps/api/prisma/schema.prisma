@@ -299,6 +299,10 @@ model ProductColor {
   position    Int      @default(0)
   /// URLs das fotos da cor (no máximo 4); a primeira é a principal.
   images      String[]
+  /// Desabilitada: o ERP deixou de marcar este item para o site. Some da loja e não pode ser comprada (a atualização com o ERP liga e desliga).
+  active      Boolean  @default(true)
+  /// O ERP marca este item para o site? Cor do ERP sem a marca não pode ser habilitada no painel; com a marca, o painel pode desabilitar só no site (a atualização respeita).
+  erpFlagged  Boolean  @default(true)
   /// Item do ERP que origina esta cor ("empresa.item", ex.: 1.2578) e o custo dele.
   erpItemCode String?  @unique
   costPrice   Decimal? @db.Decimal(10, 2)

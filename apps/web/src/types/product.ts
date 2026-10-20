@@ -98,6 +98,11 @@ export interface Product {
 /** Cor do produto com as suas fotos (até 4). */
 export interface ProductColor {
   name: string;
+  /** Falso: cor desabilitada (o ERP não marca o item para o site ou foi desligada no painel): some da loja e não pode ser comprada. */
+  active?: boolean;
+  /** Cor do ERP: o ERP marca este item para o site? Sem a marca, não dá para habilitar no painel. */
+  erpFlagged?: boolean;
+  erpItemCode?: string | null;
   images: string[];
   /** Preço da cor (o do produto quando ela não tem preço próprio) e o "de" riscado. */
   price?: string | null;
@@ -473,15 +478,35 @@ export interface PanelUser {
 
 /** Resultado do botão "Atualizar do ERP" (Produtos). */
 export interface ErpRefreshReport {
+  startedAt: string;
   finishedAt: string;
+  durationMs: number;
+  /** Itens (cores) marcados para o site que o ERP devolveu. */
   flaggedItems: number;
+  /** Produtos (marca + referência) conferidos na rodada. */
+  productsChecked: number;
   created: { name: string; reference: string; colors: number }[];
-  updated: { name: string; reference: string; newColors: number; stockChanges: number }[];
+  /** Produtos existentes que mudaram com o ERP. */
+  updated: { name: string; reference: string; newColors: number; stockChanges: number; priceChanged: boolean; disabledColors: string[]; enabledColors: string[] }[];
+  unchanged: number;
   /** Cadastros que a atualização criou no site por não existirem. */
   catalogCreated: { brands: string[]; classes: string[]; categories: string[] };
   needsReview: { reference: string; brand: string; reason: string }[];
-  /** Pendências abertas depois da atualização. */
+  /** Pendências abertas depois da atualização e quantas surgiram nela. */
   attention: number;
+  newIssues: number;
+}
+
+/** Andamento da atualização com o ERP (a API guarda; a tela consulta enquanto roda). */
+export interface ErpRefreshStatus {
+  running: boolean;
+  phase: "idle" | "brands" | "products" | "saving" | "done" | "failed";
+  label: string;
+  percent: number;
+  startedAt: string | null;
+  finishedAt: string | null;
+  report: ErpRefreshReport | null;
+  error: string | null;
 }
 
 /** Pendência da importação do ERP: produto que não entrou (sem `productId`) ou entrou com ressalvas. `reason`: um motivo por linha. */

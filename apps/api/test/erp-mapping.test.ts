@@ -94,3 +94,18 @@ test("de-para: tipo do ERP vira categoria e classe do site", () => {
   assert.equal(classFor({ type: "SOBRETUDO", group: "ACESSORIOS" }), "Acessórios", "tipo desconhecido usa o grupo");
   assert.equal(classFor({ type: "SOBRETUDO", group: "" }), "Outros");
 });
+
+test("cor não marcada para o site fica sem estoque vendável, mas o saldo do ERP é guardado", () => {
+  const sizes = [{ code: "37", label: "37", ean: "" }];
+  const plan = buildPlan([
+    { item: item({ pkItem: "1.10", color: "PRETO", siteClass: "NORMAL", price: 100, sizes }), stock: new Map([["37", 5]]) },
+    { item: item({ pkItem: "1.11", color: "PANNA", siteClass: "NONE", price: 0, sizes }), stock: new Map([["37", 3]]) },
+  ]);
+  const [on, off] = plan.colors;
+  assert.equal(on!.flagged, true);
+  assert.equal(on!.sizes[0]!.stock, 5);
+  assert.equal(off!.flagged, false);
+  assert.equal(off!.sizes[0]!.stock, 0, "desabilitada no ERP: nada para vender");
+  assert.equal(off!.sizes[0]!.erpStock, 3, "o saldo real continua registrado no plano");
+  assert.equal(plan.product.price, 100, "o preço vem só das cores marcadas");
+});

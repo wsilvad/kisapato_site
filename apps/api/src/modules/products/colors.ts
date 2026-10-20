@@ -17,7 +17,7 @@ interface WithColors {
   /** Produto do ERP: cor sem foto própria fica oculta na loja (não herda as fotos gerais). */
   erpRef?: string | null;
   images: string[];
-  colors: { name: string; position: number; images: string[]; price?: Money | null; compareAtPrice?: Money | null }[];
+  colors: { name: string; position: number; images: string[]; price?: Money | null; compareAtPrice?: Money | null; active?: boolean }[];
   variants?: { color: string }[];
 }
 
@@ -26,8 +26,10 @@ interface WithColors {
  * exista nas numerações. Cor sem fotos usa as fotos gerais do produto, então produtos antigos continuam iguais.
  */
 export function colorsOf(product: WithColors): ColorPhotos[] {
-  const known = [...product.colors].sort((a, b) => a.position - b.position);
-  const seen = new Set(known.map((c) => c.name.toLowerCase()));
+  // cor desabilitada (o ERP deixou de marcar o item para o site) não aparece, nem pelas numerações
+  const off = new Set(product.colors.filter((c) => c.active === false).map((c) => c.name.toLowerCase()));
+  const known = product.colors.filter((c) => c.active !== false).sort((a, b) => a.position - b.position);
+  const seen = new Set([...known.map((c) => c.name.toLowerCase()), ...off]);
   const extra: string[] = [];
   for (const v of product.variants ?? []) {
     if (!seen.has(v.color.toLowerCase())) {

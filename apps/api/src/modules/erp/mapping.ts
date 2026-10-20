@@ -212,13 +212,14 @@ export function buildPlan(inputs: PlanInput[], { brandName }: PlanOptions = {}):
     if (seenColors.has(name.toLowerCase())) errors.push(`Cor repetida na referência: ${name}.`);
     seenColors.add(name.toLowerCase());
     const clothing = scheme === "CONFECCAO";
+    const flagged = item.siteClass !== "NONE" && item.siteClass !== "";
     const sizes: PlanSize[] = item.sizes
       .filter((z) => clothing || /^\d+$/.test(z.label))
       .map((z) => {
         const erpStock = stock.get(z.code) ?? 0;
         const label = clothing ? clothingLabel(z.label) : z.label;
         const size = clothing ? CLOTHING_ORDER[z.label.toUpperCase()] ?? 0 : Number(z.label);
-        return { size, label, sizeLabel: clothing ? label : null, erpSizeCode: z.code, ean: z.ean || null, stock: clampStock(erpStock), erpStock, sku: `${item.pkItem}-${label}` };
+        return { size, label, sizeLabel: clothing ? label : null, erpSizeCode: z.code, ean: z.ean || null, stock: flagged ? clampStock(erpStock) : 0, erpStock, sku: `${item.pkItem}-${label}` };
       })
       .sort((a, b) => a.size - b.size);
     const grade = new Set(item.sizes.map((z) => z.code));
@@ -231,7 +232,7 @@ export function buildPlan(inputs: PlanInput[], { brandName }: PlanOptions = {}):
       erpItemCode: item.pkItem,
       name,
       position,
-      flagged: item.siteClass !== "NONE" && item.siteClass !== "",
+      flagged,
       disabledNote: disabled,
       price: item.price,
       previousPrice: item.previousPrice,

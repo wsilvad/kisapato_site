@@ -1,5 +1,5 @@
 import { getAdminToken } from "@/lib/admin-session";
-import type { AdminStats, Address, Audience, Brand, Campaign, Capabilities, Category, CustomerStat, DashFilters, ErpIssue, ErpRefreshReport, Facets, Inventory, Order, Overview, Paginated, Product, ProductClass, SavedCard, ShippingQuote, Showcase, PanelUser, SiteSettings, StockMovement, Story, User } from "@/types/product";
+import type { AdminStats, Address, Audience, Brand, Campaign, Capabilities, Category, CustomerStat, DashFilters, ErpIssue, ErpRefreshStatus, Facets, Inventory, Order, Overview, Paginated, Product, ProductClass, SavedCard, ShippingQuote, Showcase, PanelUser, SiteSettings, StockMovement, Story, User } from "@/types/product";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3333/api";
 /** Origem da API (sem /api), usada para servir as fotos enviadas em /uploads. */
@@ -189,7 +189,9 @@ export const api = {
     setActive: (resource: "products" | "categories" | "classes" | "brands" | "stories", id: string, active: boolean) =>
       request<{ id: string; active: boolean }>(`/admin/${resource}/${id}/active`, { method: "PATCH", json: { active } }),
     /** Procura no ERP os itens marcados para o site (produtos novos entram desativados) e confere os já importados. Só lê do ERP. */
-    refreshFromErp: () => request<ErpRefreshReport>("/admin/products/erp-refresh", { method: "POST" }),
+    refreshFromErp: () => request<ErpRefreshStatus>("/admin/products/erp-refresh", { method: "POST" }),
+    /** Andamento e resultado da última atualização com o ERP. */
+    erpRefreshStatus: () => request<ErpRefreshStatus>("/admin/products/erp-refresh"),
     /** Pendências abertas da importação do ERP. */
     erpIssues: () => request<ErpIssue[]>("/admin/products/erp-issues"),
     stats: () => request<AdminStats>("/admin/stats"),

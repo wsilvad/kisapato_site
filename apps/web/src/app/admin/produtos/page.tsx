@@ -4,10 +4,11 @@ import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { Badge, ConfirmButton, EmptyState, ImageGallery, Notice, PageHead, RowSwitch, SearchSelect, SlugField, Switch, slugify, useAdminList, Thumb, type SearchOption } from "@/components/admin/kit";
 import { api } from "@/lib/api";
+import { useErpRefresh } from "@/lib/erp-refresh";
 import { formatPrice } from "@/lib/format";
 import { AGE_GROUP_LABEL, GENDER_LABEL, KIDS_GENDER_LABEL, segmentLabel, type AgeGroup, type Gender } from "@/lib/segment";
 import { hiddenReason } from "@/lib/visibility";
-import { BADGE_LABEL, type BadgeKey, type Brand, type Category, type ErpIssue, type ErpRefreshReport, type Product, type ProductClass } from "@/types/product";
+import { BADGE_LABEL, type BadgeKey, type Brand, type Category, type ErpIssue, type ErpRefreshStatus, type Product, type ProductClass } from "@/types/product";
 
 /** Numeração de uma cor: estoque próprio e SKU (vazio = automático). */
 interface SizeRow {
@@ -37,6 +38,10 @@ interface ColorItem {
   /** Preço próprio da cor e o "de" riscado (vazio = vale o preço do produto). */
   price: string;
   compareAtPrice: string;
+  /** À venda na loja. Desabilitada some da loja e não tem estoque vendável. */
+  active: boolean;
+  /** Cor do ERP que o ERP não marca para o site: não pode ser habilitada aqui (só o ERP religa). */
+  erpLocked: boolean;
   sizes: SizeRow[];
 }
 
@@ -106,6 +111,11 @@ function itemsFromProduct(p: Product): ColorItem[] {
     images: (p.colors ?? []).find((c) => c.name === name)?.images ?? [],
     price: (p.colors ?? []).find((c) => c.name === name)?.price ?? "",
     compareAtPrice: (p.colors ?? []).find((c) => c.name === name)?.compareAtPrice ?? "",
+    active: (p.colors ?? []).find((c) => c.name === name)?.active !== false,
+    erpLocked: (() => {
+      const c = (p.colors ?? []).find((x) => x.name === name);
+      return !!c?.erpItemCode && c.erpFlagged === false;
+    })(),
     sizes: variants
       .filter((v) => v.color === name)
       .map((v) => ({ size: v.sizeLabel ? "" : String(v.size), label: v.sizeLabel ?? "", stock: String(v.stock), sku: v.sku === autoSku(p.slug, v.color, v.sizeLabel ?? String(v.size)) ? "" : v.sku }))
@@ -133,7 +143,7 @@ function toBody(f: FormState) {
         };
       }),
     ),
-    colors: f.items.map((it) => ({ name: it.color.trim(), images: it.images.slice(0, MAX_COLOR_PHOTOS), price: it.price || null, compareAtPrice: it.price ? it.compareAtPrice || null : null })),
+    colors: f.items.map((it) => ({ name: it.color.trim(), active: it.active, images: it.images.slice(0, MAX_COLOR_PHOTOS), price: it.price || null, compareAtPrice: it.price ? it.compareAtPrice || null : null })),
   };
 }
 
@@ -193,57 +203,113 @@ function IssueIcon({ reason }: { reason: string }) {
   );
 }
 
-/** Resumo da última atualização com o ERP: o que entrou, o que foi conferido e o que precisa de ajuste na loja. */
-function ErpRefreshResult({ report, onClose }: { report: ErpRefreshReport; onClose: () => void }) {
-  const stock = report.updated.reduce((sum, u) => sum + u.stockChanges, 0);
-  const newColors = report.updated.reduce((sum, u) => sum + u.newColors, 0);
-  const made = report.catalogCreated;
-  const madeCount = made.brands.length + made.classes.length + made.categories.length;
-  const nothing = report.created.length === 0 && report.updated.length === 0 && report.needsReview.length === 0;
-  // falha ao ler uma marca no ERP: não vira pendência (some na próxima leitura), só aparece aqui
-  const unread = report.needsReview.filter((r) => r.reference === "—");
+const DISMISSED_KEY = "ki-sapato:erp-refresh-dismissed";
+const readDismissed = () => {
+  try {
+    return window.localStorage.getItem(DISMISSED_KEY);
+  } catch {
+    return null;
+  }
+};
+
+const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+const duration = (ms: number) => (ms < 60_000 ? `${Math.max(1, Math.round(ms / 1000))} s` : `${Math.floor(ms / 60_000)} min ${Math.round((ms % 60_000) / 1000)} s`);
+
+/**
+ * Janela da atualização com o ERP: enquanto roda, a barra com o % e a etapa (continua depois de recarregar a página, porque a
+ * tarefa roda na API); ao terminar, o resultado com os números e o que entrou, mudou, foi criado ou ficou pendente.
+ */
+function ErpRefreshPanel({ status, onClose, onShowIssues }: { status: ErpRefreshStatus; onClose: () => void; onShowIssues: () => void }) {
+  if (status.running) {
+    return (
+      <div className="erp-panel" role="status" aria-live="polite">
+        <div className="erp-panel-head">
+          <strong>Atualizando com o ERP… {status.percent}%</strong>
+          <span className="muted">{status.label}</span>
+        </div>
+        <div className="erp-progress" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={status.percent} aria-label="Andamento da atualização">
+          <span style={{ width: `${status.percent}%` }} />
+        </div>
+        <p className="muted">Pode continuar usando o painel ou recarregar a página: a atualização segue na API e avisamos quando terminar.</p>
+      </div>
+    );
+  }
+  if (status.phase === "failed") {
+    return (
+      <div className="erp-panel is-error" role="alert">
+        <div className="erp-panel-head">
+          <strong>A atualização com o ERP falhou</strong>
+          <button type="button" className="link-btn" onClick={onClose}>Fechar</button>
+        </div>
+        <p>{status.error}</p>
+      </div>
+    );
+  }
+  const r = status.report;
+  if (!r) return null;
+  const made = r.catalogCreated;
+  const madeList = [
+    made.brands.length > 0 && `marcas: ${made.brands.join(", ")}`,
+    made.classes.length > 0 && `classes: ${made.classes.join(", ")}`,
+    made.categories.length > 0 && `categorias: ${made.categories.join(", ")}`,
+  ].filter(Boolean);
+  const unread = r.needsReview.filter((n) => n.reference === "—"); // falha ao ler uma marca: não vira pendência, só aparece aqui
+  const stats: [string, number][] = [
+    ["Itens marcados no ERP", r.flaggedItems],
+    ["Produtos conferidos", r.productsChecked],
+    ["Novos", r.created.length],
+    ["Alterados", r.updated.length],
+    ["Sem mudança", r.unchanged],
+    ["Pendências", r.attention],
+  ];
   return (
-    <div className="notice" role="status">
-      <p style={{ margin: 0 }}>
-        <strong>ERP conferido</strong> ({report.flaggedItems} {report.flaggedItems === 1 ? "item marcado" : "itens marcados"} para o site).{" "}
+    <div className="erp-panel" role="status">
+      <div className="erp-panel-head">
+        <strong>Atualização com o ERP concluída</strong>
+        <span className="muted">
+          {new Date(r.finishedAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })} · {duration(r.durationMs)}
+        </span>
         <button type="button" className="link-btn" onClick={onClose}>Fechar</button>
-      </p>
-      {nothing && <p style={{ margin: "8px 0 0" }}>Nenhum produto marcado para o site no ERP.</p>}
-      {report.created.length > 0 && (
-        <>
-          <p style={{ margin: "8px 0 0" }}>
-            <strong>{report.created.length} {report.created.length === 1 ? "produto novo" : "produtos novos"}</strong> — entram <strong>desativados</strong>: envie as fotos e a descrição e depois ative.
-          </p>
-          <ul style={{ margin: "4px 0 0", paddingLeft: 20 }}>
-            {report.created.map((c) => <li key={c.reference + c.name}>{c.name} <span className="muted">({c.reference} · {c.colors} {c.colors === 1 ? "cor" : "cores"})</span></li>)}
+      </div>
+      <dl className="erp-stats">
+        {stats.map(([label, value]) => (
+          <div key={label}><dt>{label}</dt><dd>{value}</dd></div>
+        ))}
+      </dl>
+      {r.created.length > 0 && (
+        <details open>
+          <summary><strong>{plural(r.created.length, "produto novo", "produtos novos")}</strong>: entram desativados; envie as fotos e a descrição e depois ative.</summary>
+          <ul>{r.created.map((c) => <li key={c.reference + c.name}>{c.name} <span className="muted">({c.reference} · {plural(c.colors, "cor", "cores")})</span></li>)}</ul>
+        </details>
+      )}
+      {r.updated.length > 0 && (
+        <details>
+          <summary><strong>{plural(r.updated.length, "produto alterado", "produtos alterados")}</strong></summary>
+          <ul>
+            {r.updated.map((u) => (
+              <li key={u.reference + u.name}>
+                {u.name} <span className="muted">({u.reference})</span>:{" "}
+                {[
+                  u.priceChanged && "preço",
+                  u.newColors > 0 && plural(u.newColors, "cor nova", "cores novas"),
+                  u.disabledColors.length > 0 && `${plural(u.disabledColors.length, "cor desabilitada", "cores desabilitadas")} (${u.disabledColors.join(", ")}): o ERP não marca mais para o site`,
+                  u.enabledColors.length > 0 && `${plural(u.enabledColors.length, "cor habilitada", "cores habilitadas")} (${u.enabledColors.join(", ")})`,
+                  u.stockChanges > 0 && `estoque em ${plural(u.stockChanges, "numeração", "numerações")}`,
+                ].filter(Boolean).join("; ") || "dados do ERP"}
+              </li>
+            ))}
           </ul>
-        </>
+        </details>
       )}
-      {madeCount > 0 && (
-        <p style={{ margin: "8px 0 0" }}>
-          <strong>Cadastros criados automaticamente</strong> (ajuste o nome em Marcas/Categorias, se quiser):
-          {made.brands.length > 0 && <> marcas: {made.brands.join(", ")}.</>}
-          {made.classes.length > 0 && <> classes: {made.classes.join(", ")}.</>}
-          {made.categories.length > 0 && <> categorias: {made.categories.join(", ")}.</>}
+      {madeList.length > 0 && <p><strong>Cadastros criados automaticamente</strong> ({madeList.join("; ")}). Ajuste os nomes em Marcas e Categorias, se quiser.</p>}
+      {r.attention > 0 && (
+        <p>
+          <strong>{plural(r.attention, "produto precisa", "produtos precisam")} da sua atenção</strong>
+          {r.newIssues > 0 && <> ({plural(r.newIssues, "nova nesta atualização", "novas nesta atualização")})</>}.{" "}
+          <button type="button" className="link-btn" onClick={onShowIssues}>Ver quais são</button>
         </p>
       )}
-      {report.updated.length > 0 && (
-        <p style={{ margin: "8px 0 0" }}>
-          {report.updated.length} {report.updated.length === 1 ? "produto existente conferido" : "produtos existentes conferidos"}
-          {newColors > 0 && <>, {newColors} {newColors === 1 ? "cor nova" : "cores novas"}</>}
-          {stock > 0 ? `, estoque mudou em ${stock} ${stock === 1 ? "numeração" : "numerações"}` : ", sem mudança de estoque"}.
-        </p>
-      )}
-      {report.attention > 0 && (
-        <p style={{ margin: "8px 0 0" }}>
-          <strong>{report.attention} {report.attention === 1 ? "produto precisa" : "produtos precisam"} da sua atenção</strong>: clique no aviso acima da lista para ver o motivo de cada um.
-        </p>
-      )}
-      {unread.length > 0 && (
-        <ul style={{ margin: "8px 0 0", paddingLeft: 20 }}>
-          {unread.map((r, i) => <li key={i}>{r.brand}: {r.reason}</li>)}
-        </ul>
-      )}
+      {unread.length > 0 && <ul>{unread.map((n, i) => <li key={i}>{n.brand}: {n.reason}</li>)}</ul>}
     </div>
   );
 }
@@ -257,8 +323,10 @@ export default function ProductsAdmin() {
   const [form, setForm] = useState<FormState | null>(null);
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<"all" | "active" | "inactive">("active");
-  const [refreshing, setRefreshing] = useState(false);
-  const [refreshReport, setRefreshReport] = useState<ErpRefreshReport | null>(null);
+  const erp = useErpRefresh();
+  const refreshing = erp.status?.running ?? false;
+  // resultado já fechado (guardado por navegador, para não reaparecer a cada visita)
+  const [dismissed, setDismissed] = useState<string | null>(readDismissed);
   const [issues, setIssues] = useState<ErpIssue[]>([]);
   const [attentionPicked, setAttention] = useState(false);
 
@@ -269,20 +337,35 @@ export default function ProductsAdmin() {
   // sem pendências, o filtro de atenção não tem o que mostrar
   const attention = attentionPicked && issues.length > 0;
 
-  /** Busca no ERP os itens marcados para o site e confere os já importados; produto novo entra desativado (falta foto e descrição). */
+  /** Busca no ERP os itens marcados para o site e confere os já importados; roda na API e a tela acompanha o andamento. */
   async function refreshFromErp() {
-    setRefreshing(true);
-    setRefreshReport(null);
     setError("");
     try {
-      const report = await api.admin.refreshFromErp();
-      setRefreshReport(report);
-      await Promise.all([reload(), loadIssues()]);
-      if (report.created.length > 0) setStatus("inactive"); // os novos nascem desativados: leva a lista até eles
+      await erp.start();
     } catch (e) {
       setError((e as Error).message);
-    } finally {
-      setRefreshing(false);
+    }
+  }
+
+  // ao terminar: recarrega a lista e as pendências; com produtos novos (nascem desativados), leva a lista até eles
+  const { onFinish } = erp;
+  useEffect(
+    () =>
+      onFinish((s) => {
+        void Promise.all([reload(), loadIssues()]);
+        if ((s.report?.created.length ?? 0) > 0) setStatus("inactive");
+      }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reload/loadIssues mudam a cada render; a inscrição vale a vida da página
+    [onFinish],
+  );
+  const panelKey = erp.status?.finishedAt ?? "";
+  const showPanel = !!erp.status && (erp.status.running || ((erp.status.phase === "done" || erp.status.phase === "failed") && panelKey !== dismissed));
+  function closePanel() {
+    setDismissed(panelKey);
+    try {
+      window.localStorage.setItem(DISMISSED_KEY, panelKey);
+    } catch {
+      /* sem armazenamento: fecha só nesta visita */
     }
   }
 
@@ -356,14 +439,14 @@ export default function ProductsAdmin() {
         action={
           <div className="admin-head-actions">
             <button className="btn btn-outline btn-sm" disabled={refreshing} onClick={refreshFromErp} title="Busca no ERP os itens marcados para o site e atualiza preço, cores e estoque dos já importados">
-              {refreshing ? "Buscando no ERP…" : "Atualizar do ERP"}
+              {refreshing ? `Atualizando… ${erp.status?.percent ?? 0}%` : "Atualizar do ERP"}
             </button>
             <button className="btn btn-solid btn-sm" onClick={() => setForm({ ...EMPTY, categoryId: categories[0]?.id ?? "" })}>+ Novo produto</button>
           </div>
         }
       />
       <Notice error={error} />
-      {refreshReport && <ErpRefreshResult report={refreshReport} onClose={() => setRefreshReport(null)} />}
+      {showPanel && <ErpRefreshPanel status={erp.status!} onClose={closePanel} onShowIssues={() => setAttention(true)} />}
       {issues.length > 0 && (
         <button type="button" className={`attention-banner${attention ? " is-on" : ""}`} aria-pressed={attention} onClick={() => setAttention((on) => !on)}>
           <IssueGlyph />
@@ -658,7 +741,7 @@ function ProductForm({ initial, categories, brands, classes, onCatalogChange, on
   /** Cria uma cor nova; ela já nasce com as numerações da última cor (estoque 0), que costumam ser as mesmas. */
   function addColor(name: string) {
     const last = f.items.at(-1);
-    const item: ColorItem = { uid: newUid(), color: name, images: [], price: "", compareAtPrice: "", sizes: (last?.sizes ?? []).map((r) => ({ size: r.size, label: r.label, stock: "0", sku: "" })) };
+    const item: ColorItem = { uid: newUid(), color: name, images: [], price: "", compareAtPrice: "", active: true, erpLocked: false, sizes: (last?.sizes ?? []).map((r) => ({ size: r.size, label: r.label, stock: "0", sku: "" })) };
     setDetailUid(item.uid);
     setF((cur) => ({ ...cur, items: [...cur.items, item] }));
   }
@@ -857,7 +940,7 @@ function ProductForm({ initial, categories, brands, classes, onCatalogChange, on
           {f.items.map((it, i) => {
             const total = stockOf(it);
             return (
-              <div key={it.uid} className="color-item">
+              <div key={it.uid} className={`color-item${it.active ? "" : " is-off"}`}>
                 <div className="color-item-head">
                   <Thumb url={it.images[0]} />
                   <span className="color-item-title">
@@ -867,6 +950,15 @@ function ProductForm({ initial, categories, brands, classes, onCatalogChange, on
                   <span className="color-item-summary">
                     {it.price && <>R$ {it.price} · </>}{it.sizes.length} numeraç{it.sizes.length === 1 ? "ão" : "ões"} · estoque {total}
                     {total === 0 && <b> · esgotada</b>}
+                  </span>
+                  <span className="active-cell" title={it.erpLocked ? "O ERP não marca este item para o site: não dá para habilitar aqui. Volta quando o ERP marcar de novo." : it.active ? "Desabilitar tira a cor da loja (continua marcada no ERP)." : "Habilitar volta a cor para a loja; o estoque dela volta na próxima atualização com o ERP."}>
+                    <RowSwitch
+                      checked={it.active}
+                      disabled={it.erpLocked}
+                      label={`${it.active ? "Desabilitar" : "Habilitar"} a cor ${it.color}`}
+                      onChange={(v) => set("items", f.items.map((x) => (x.uid === it.uid ? { ...x, active: v } : x)))}
+                    />
+                    {it.active ? <Badge tone="ok">À venda</Badge> : <Badge tone="off">{it.erpLocked ? "Desabilitada no ERP" : "Desabilitada"}</Badge>}
                   </span>
                   <span className="move">
                     <button type="button" aria-label={`Subir a cor ${it.color}`} disabled={i === 0} onClick={() => moveColor(it.uid, -1)}>↑</button>

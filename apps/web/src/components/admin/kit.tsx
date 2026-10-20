@@ -83,10 +83,10 @@ export function Switch({ checked, onChange, label }: { checked: boolean; onChang
 }
 
 /** Interruptor compacto para tabelas (ex.: ativo/inativo). O rótulo vai para quem usa leitor de tela. */
-export function RowSwitch({ checked, onChange, label }: { checked: boolean; onChange: (value: boolean) => void; label: string }) {
+export function RowSwitch({ checked, onChange, label, disabled }: { checked: boolean; onChange: (value: boolean) => void; label: string; disabled?: boolean }) {
   return (
     <label className="switch switch-sm" title={label}>
-      <input type="checkbox" role="switch" checked={checked} aria-label={label} onChange={(e) => onChange(e.target.checked)} />
+      <input type="checkbox" role="switch" checked={checked} disabled={disabled} aria-label={label} onChange={(e) => onChange(e.target.checked)} />
       <span className="switch-track" aria-hidden="true" />
     </label>
   );
