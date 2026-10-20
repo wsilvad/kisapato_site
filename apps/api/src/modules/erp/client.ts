@@ -30,9 +30,12 @@ export interface ErpItem {
 
 function endpoint() {
   const url = process.env.ERP_URL;
-  if (!url) throw new AppError("ERP_URL não configurada (endereço do serviço do ERP).", 500);
+  if (!url) throw new AppError("ERP_URL não configurada (endereço do serviço do ERP).", 503);
   return url;
 }
+
+/** A atualização pelo painel só precisa saber se há ERP configurado antes de começar. */
+export const erpConfigured = () => !!process.env.ERP_URL;
 
 async function call(operation: string, params: Record<string, string>): Promise<XmlObject[]> {
   const body = Object.entries(params).map(([k, v]) => `<${k}>${v.replace(/[<>&]/g, "")}</${k}>`).join("");
@@ -77,6 +80,14 @@ export async function getItem(code: string): Promise<ErpItem | null> {
   const rows = await call("getDadosItemByCod", { codItem: code });
   return rows[0] ? toItem(rows[0]) : null;
 }
+
+/** Itens marcados para o site de uma marca (`getDadosItem`): só aparecem os que a loja marcou no ERP, cada cor é um item. */
+export async function getSiteItems(brandCode: string): Promise<ErpItem[]> {
+  return (await call("getDadosItem", { codMarca: brandCode })).map(toItem).filter((i): i is ErpItem => i !== null);
+}
+
+/** Item marcado para o site: a classe do site no ERP (N/P/L/D) é diferente de vazio e de NONE. */
+export const isSiteFlagged = (item: Pick<ErpItem, "siteClass">) => item.siteClass !== "" && item.siteClass !== "NONE";
 
 /** Estoque por tamanho (codTamanho → quantidade somada de todas as lojas; o ERP aceita saldo negativo). */
 export async function getStock(code: string): Promise<Map<string, number>> {

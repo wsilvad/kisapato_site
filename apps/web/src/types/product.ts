@@ -470,3 +470,12 @@ export interface PanelUser {
   twoFactorEnabled: boolean;
   createdAt: string;
 }
+
+/** Resultado do botão "Atualizar do ERP" (Produtos). */
+export interface ErpRefreshReport {
+  finishedAt: string;
+  flaggedItems: number;
+  created: { name: string; reference: string; colors: number }[];
+  updated: { name: string; reference: string; newColors: number; stockChanges: number }[];
+  needsReview: { reference: string; brand: string; reason: string }[];
+}

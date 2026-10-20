@@ -7,7 +7,7 @@ import { api } from "@/lib/api";
 import { formatPrice } from "@/lib/format";
 import { AGE_GROUP_LABEL, GENDER_LABEL, KIDS_GENDER_LABEL, segmentLabel, type AgeGroup, type Gender } from "@/lib/segment";
 import { hiddenReason } from "@/lib/visibility";
-import { BADGE_LABEL, type BadgeKey, type Brand, type Category, type Product, type ProductClass } from "@/types/product";
+import { BADGE_LABEL, type BadgeKey, type Brand, type Category, type ErpRefreshReport, type Product, type ProductClass } from "@/types/product";
 
 /** Numeração de uma cor: estoque próprio e SKU (vazio = automático). */
 interface SizeRow {
@@ -177,6 +177,47 @@ function validate(f: FormState): string {
   return "";
 }
 
+/** Resumo da última atualização com o ERP: o que entrou, o que foi conferido e o que precisa de ajuste na loja. */
+function ErpRefreshResult({ report, onClose }: { report: ErpRefreshReport; onClose: () => void }) {
+  const stock = report.updated.reduce((sum, u) => sum + u.stockChanges, 0);
+  const newColors = report.updated.reduce((sum, u) => sum + u.newColors, 0);
+  const nothing = report.created.length === 0 && report.updated.length === 0 && report.needsReview.length === 0;
+  return (
+    <div className="notice" role="status">
+      <p style={{ margin: 0 }}>
+        <strong>ERP conferido</strong> ({report.flaggedItems} {report.flaggedItems === 1 ? "item marcado" : "itens marcados"} para o site).{" "}
+        <button type="button" className="link-btn" onClick={onClose}>Fechar</button>
+      </p>
+      {nothing && <p style={{ margin: "8px 0 0" }}>Nenhum produto marcado para o site no ERP.</p>}
+      {report.created.length > 0 && (
+        <>
+          <p style={{ margin: "8px 0 0" }}>
+            <strong>{report.created.length} {report.created.length === 1 ? "produto novo" : "produtos novos"}</strong> — entram <strong>desativados</strong>: envie as fotos e a descrição e depois ative.
+          </p>
+          <ul style={{ margin: "4px 0 0", paddingLeft: 20 }}>
+            {report.created.map((c) => <li key={c.reference + c.name}>{c.name} <span className="muted">({c.reference} · {c.colors} {c.colors === 1 ? "cor" : "cores"})</span></li>)}
+          </ul>
+        </>
+      )}
+      {report.updated.length > 0 && (
+        <p style={{ margin: "8px 0 0" }}>
+          {report.updated.length} {report.updated.length === 1 ? "produto existente conferido" : "produtos existentes conferidos"}
+          {newColors > 0 && <>, {newColors} {newColors === 1 ? "cor nova" : "cores novas"}</>}
+          {stock > 0 ? `, estoque mudou em ${stock} ${stock === 1 ? "numeração" : "numerações"}` : ", sem mudança de estoque"}.
+        </p>
+      )}
+      {report.needsReview.length > 0 && (
+        <>
+          <p style={{ margin: "8px 0 0" }}><strong>{report.needsReview.length} {report.needsReview.length === 1 ? "item precisa" : "itens precisam"} de ajuste</strong> e não {report.needsReview.length === 1 ? "foi importado" : "foram importados"}:</p>
+          <ul style={{ margin: "4px 0 0", paddingLeft: 20 }}>
+            {report.needsReview.map((r, i) => <li key={i}>{r.brand} · {r.reference}: {r.reason}</li>)}
+          </ul>
+        </>
+      )}
+    </div>
+  );
+}
+
 export default function ProductsAdmin() {
   const { items, setItems, loading, error, setError, reload } = useAdminList<Product>("products");
   const categoryList = useAdminList<Category>("categories");
@@ -185,7 +226,26 @@ export default function ProductsAdmin() {
   const categories = categoryList.items;
   const [form, setForm] = useState<FormState | null>(null);
   const [query, setQuery] = useState("");
-  const [status, setStatus] = useState<"all" | "active" | "inactive">("all");
+  const [status, setStatus] = useState<"all" | "active" | "inactive">("active");
+  const [refreshing, setRefreshing] = useState(false);
+  const [refreshReport, setRefreshReport] = useState<ErpRefreshReport | null>(null);
+
+  /** Busca no ERP os itens marcados para o site e confere os já importados; produto novo entra desativado (falta foto e descrição). */
+  async function refreshFromErp() {
+    setRefreshing(true);
+    setRefreshReport(null);
+    setError("");
+    try {
+      const report = await api.admin.refreshFromErp();
+      setRefreshReport(report);
+      await reload();
+      if (report.created.length > 0) setStatus("inactive"); // os novos nascem desativados: leva a lista até eles
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setRefreshing(false);
+    }
+  }
 
   const visible = useMemo(
     () =>
@@ -248,9 +308,17 @@ export default function ProductsAdmin() {
       <PageHead
         title="Produtos"
         hint="Cadastre, edite, desative (some da loja sem perder o histórico) ou exclua produtos."
-        action={<button className="btn btn-solid btn-sm" onClick={() => setForm({ ...EMPTY, categoryId: categories[0]?.id ?? "" })}>+ Novo produto</button>}
+        action={
+          <div className="admin-head-actions">
+            <button className="btn btn-outline btn-sm" disabled={refreshing} onClick={refreshFromErp} title="Busca no ERP os itens marcados para o site e atualiza preço, cores e estoque dos já importados">
+              {refreshing ? "Buscando no ERP…" : "Atualizar do ERP"}
+            </button>
+            <button className="btn btn-solid btn-sm" onClick={() => setForm({ ...EMPTY, categoryId: categories[0]?.id ?? "" })}>+ Novo produto</button>
+          </div>
+        }
       />
       <Notice error={error} />
+      {refreshReport && <ErpRefreshResult report={refreshReport} onClose={() => setRefreshReport(null)} />}
       <div className="toolbar">
         <input type="search" placeholder="Buscar por nome, referência, marca ou categoria" value={query} onChange={(e) => setQuery(e.target.value)} />
         <select value={status} onChange={(e) => setStatus(e.target.value as typeof status)} aria-label="Filtrar por situação">

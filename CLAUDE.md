@@ -18,6 +18,11 @@ E-commerce de calçados. Idioma: português (pt-BR). Monorepo npm workspaces.
 - Limites de tentativas em `src/middlewares/rate-limit.ts` (memória do processo; `trust proxy` = 1 em produção).
 - Testes: `npm test -w @ki-sapato/api` (regras de segurança, sem banco).
 
+## ERP (módulo `erp` da API; botão "Atualizar do ERP" em Produtos no painel)
+- Só leitura (SOAP Macle ControleWS, `ERP_URL`). `POST /admin/products/erp-refresh` (`erp/sync.ts`): lê os itens marcados para o site de todas as marcas (`getDadosItem`), junta com os produtos já importados e grava pelo `applyPlan` (preço, cores, numerações e estoque). Produto novo nasce DESATIVADO (foto, descrição, selo e "ativo" são do site). O que não dá para importar (marca não cadastrada no site, tipo sem categoria, grade mista, sem preço) volta em `needsReview` e a tela lista. Uma atualização por vez (409 se já houver).
+- Cada cor é um item do ERP: só entram as cores marcadas; ao marcar outra cor, a próxima atualização a acrescenta ao produto. Item que deixa de ser marcado não é desativado sozinho.
+- Também há o script `npm run erp:import -w @ki-sapato/api -- --ref <referência> [--apply]` para um produto só.
+
 ## Comandos
 - `npm run dev` (api + web), `npm run typecheck`, `npm run lint`, `npm test -w @ki-sapato/api`.
 - `npm run db:migrate` (dev), `npm run db:deploy` (produção), `npm run db:seed`.

@@ -1,5 +1,5 @@
 import { getAdminToken } from "@/lib/admin-session";
-import type { AdminStats, Address, Audience, Brand, Campaign, Capabilities, Category, CustomerStat, DashFilters, Facets, Inventory, Order, Overview, Paginated, Product, ProductClass, SavedCard, ShippingQuote, Showcase, PanelUser, SiteSettings, StockMovement, Story, User } from "@/types/product";
+import type { AdminStats, Address, Audience, Brand, Campaign, Capabilities, Category, CustomerStat, DashFilters, ErpRefreshReport, Facets, Inventory, Order, Overview, Paginated, Product, ProductClass, SavedCard, ShippingQuote, Showcase, PanelUser, SiteSettings, StockMovement, Story, User } from "@/types/product";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3333/api";
 /** Origem da API (sem /api), usada para servir as fotos enviadas em /uploads. */
@@ -188,6 +188,8 @@ export const api = {
     /** Ativa/desativa direto da tabela. Inativo some da loja (e leva os produtos ligados, no caso de categoria, classe e marca). */
     setActive: (resource: "products" | "categories" | "classes" | "brands" | "stories", id: string, active: boolean) =>
       request<{ id: string; active: boolean }>(`/admin/${resource}/${id}/active`, { method: "PATCH", json: { active } }),
+    /** Procura no ERP os itens marcados para o site (produtos novos entram desativados) e confere os já importados. Só lê do ERP. */
+    refreshFromErp: () => request<ErpRefreshReport>("/admin/products/erp-refresh", { method: "POST" }),
     stats: () => request<AdminStats>("/admin/stats"),
     overview: (from: string, to: string, filters: DashFilters = {}) =>
       request<Overview>(`/admin/reports/overview?${new URLSearchParams({ from, to, ...Object.fromEntries(Object.entries(filters).filter(([, v]) => v)) })}`),

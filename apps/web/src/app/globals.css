@@ -744,6 +744,7 @@ button.btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .admin-side nav a.is-active { background: var(--ink); color: var(--paper); }
 .admin-exit { margin-top: auto; font-size: 13px; color: var(--muted); }
 .admin-main { min-width: 0; padding: 32px var(--pad) 64px; }
+.admin-head-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
 .admin-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 24px; }
 .admin-title { font-size: 36px; }
 .admin-sub { margin: 32px 0 12px; font-size: 24px; }
