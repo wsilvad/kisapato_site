@@ -1,42 +1,31 @@
 import { AppError } from "../../lib/errors.js";
 import { prisma } from "../../lib/prisma.js";
 import { recordMovement } from "../stock/stock.service.js";
-import { getBrands } from "./client.js";
-import { slugify, type ImportPlan } from "./mapping.js";
+import { emptyCreated, ensureBrand, ensureCategory, type CatalogCreated } from "./catalog.js";
+import type { ImportPlan } from "./mapping.js";
 
 /** Nome do site de um produto do ERP: tipo + nome da marca no site (sem a referência). */
 const siteName = (plan: ImportPlan, brandName: string) => `${plan.product.typeName} ${brandName}`.trim();
-
-const norm = (s: string) => slugify(s);
-
-/** Marca do site para o código do ERP: pelo `erpCode` já gravado ou, na primeira vez, pelo nome (e então grava o código). */
-async function resolveBrand(brandCode: string) {
-  const linked = await prisma.brand.findUnique({ where: { erpCode: brandCode } });
-  if (linked) return linked;
-  const erpBrand = (await getBrands()).find((b) => b.code === brandCode);
-  if (!erpBrand) throw new AppError(`Marca ${brandCode} não existe no ERP.`, 404);
-  const matches = (await prisma.brand.findMany({ where: { erpCode: null } })).filter((b) => norm(b.name) === norm(erpBrand.name));
-  if (matches.length !== 1) throw new AppError(`Marca "${erpBrand.name}" (${brandCode}) ${matches.length === 0 ? "não foi encontrada" : "tem mais de um cadastro"} no site: cadastre ou ajuste a marca antes de importar.`, 409);
-  return prisma.brand.update({ where: { id: matches[0]!.id }, data: { erpCode: brandCode } });
-}
 
 export interface ApplyResult {
   productId: string;
   created: boolean;
   colors: { created: number; updated: number };
   variants: { created: number; updated: number; stockChanges: number };
+  /** Marcas, classes e categorias que não existiam no site e foram criadas para este produto. */
+  catalog: CatalogCreated;
 }
 
 /**
- * Grava o plano no banco. Só mexe no que é do ERP (nome, preço, custo, gênero, categoria, cores, numerações e estoque):
+ * Grava o plano no banco. Marca, classe e categoria que faltarem no site são criadas (ver catalog.ts). Só mexe no que é do ERP (nome, preço, custo, gênero, categoria, cores, numerações e estoque):
  * fotos, descrição, selo e o "ativo" são do site, então um produto novo nasce INATIVO e um existente mantém o que tem.
  */
 export async function applyPlan(plan: ImportPlan): Promise<ApplyResult> {
   if (plan.errors.length > 0) throw new AppError(`O plano tem erros e não pode ser gravado: ${plan.errors.join(" ")}`, 422);
   const p = plan.product;
-  const brand = await resolveBrand(plan.key.brandCode);
-  const category = await prisma.category.findFirst({ where: { name: { equals: p.category!, mode: "insensitive" } } });
-  if (!category) throw new AppError(`Categoria "${p.category}" não existe no site.`, 409);
+  const catalog = emptyCreated();
+  const brand = await ensureBrand(plan.key.brandCode, catalog);
+  const category = await ensureCategory(p.category!, p.className, catalog);
 
   return prisma.$transaction(async (tx) => {
     const existing = await tx.product.findUnique({ where: { erpBrandCode_erpRef: { erpBrandCode: plan.key.brandCode, erpRef: plan.key.ref } } });
@@ -66,7 +55,7 @@ export async function applyPlan(plan: ImportPlan): Promise<ApplyResult> {
       productId = (await tx.product.create({ data: { ...erpFields, name: siteName(plan, brand.name), slug, erpBrandCode: plan.key.brandCode, erpRef: plan.key.ref, active: false, images: [] } })).id;
     }
 
-    const result: ApplyResult = { productId, created: !existing, colors: { created: 0, updated: 0 }, variants: { created: 0, updated: 0, stockChanges: 0 } };
+    const result: ApplyResult = { productId, created: !existing, colors: { created: 0, updated: 0 }, variants: { created: 0, updated: 0, stockChanges: 0 }, catalog };
     for (const color of plan.colors) {
       const known = await tx.productColor.findFirst({ where: { productId, OR: [{ erpItemCode: color.erpItemCode }, { name: color.name }] } });
       const data = {

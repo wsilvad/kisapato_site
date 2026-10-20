@@ -7,7 +7,7 @@ import { api } from "@/lib/api";
 import { formatPrice } from "@/lib/format";
 import { AGE_GROUP_LABEL, GENDER_LABEL, KIDS_GENDER_LABEL, segmentLabel, type AgeGroup, type Gender } from "@/lib/segment";
 import { hiddenReason } from "@/lib/visibility";
-import { BADGE_LABEL, type BadgeKey, type Brand, type Category, type ErpRefreshReport, type Product, type ProductClass } from "@/types/product";
+import { BADGE_LABEL, type BadgeKey, type Brand, type Category, type ErpIssue, type ErpRefreshReport, type Product, type ProductClass } from "@/types/product";
 
 /** Numeração de uma cor: estoque próprio e SKU (vazio = automático). */
 interface SizeRow {
@@ -177,11 +177,31 @@ function validate(f: FormState): string {
   return "";
 }
 
+/** Triângulo de aviso (o mesmo do ícone das linhas). */
+function IssueGlyph() {
+  return <svg className="issue-glyph" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M12 3 2 21h20L12 3Z" fill="currentColor" /><path d="M12 10v5M12 17.5v.5" stroke="#fff" strokeWidth="2" strokeLinecap="round" /></svg>;
+}
+
+/** Ícone de aviso com o motivo da pendência da importação (aparece ao passar o mouse ou ao focar com o teclado). */
+function IssueIcon({ reason }: { reason: string }) {
+  const lines = reason.split("\n");
+  return (
+    <span className="issue-icon" tabIndex={0} role="img" aria-label={`Problema na importação do ERP: ${lines.join(" ")}`}>
+      <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M12 3 2 21h20L12 3Z" fill="currentColor" /><path d="M12 10v5M12 17.5v.5" stroke="#fff" strokeWidth="2" strokeLinecap="round" /></svg>
+      <span className="issue-tip" role="tooltip">{lines.map((l, i) => <span key={i}>{l}</span>)}</span>
+    </span>
+  );
+}
+
 /** Resumo da última atualização com o ERP: o que entrou, o que foi conferido e o que precisa de ajuste na loja. */
 function ErpRefreshResult({ report, onClose }: { report: ErpRefreshReport; onClose: () => void }) {
   const stock = report.updated.reduce((sum, u) => sum + u.stockChanges, 0);
   const newColors = report.updated.reduce((sum, u) => sum + u.newColors, 0);
+  const made = report.catalogCreated;
+  const madeCount = made.brands.length + made.classes.length + made.categories.length;
   const nothing = report.created.length === 0 && report.updated.length === 0 && report.needsReview.length === 0;
+  // falha ao ler uma marca no ERP: não vira pendência (some na próxima leitura), só aparece aqui
+  const unread = report.needsReview.filter((r) => r.reference === "—");
   return (
     <div className="notice" role="status">
       <p style={{ margin: 0 }}>
@@ -199,6 +219,14 @@ function ErpRefreshResult({ report, onClose }: { report: ErpRefreshReport; onClo
           </ul>
         </>
       )}
+      {madeCount > 0 && (
+        <p style={{ margin: "8px 0 0" }}>
+          <strong>Cadastros criados automaticamente</strong> (ajuste o nome em Marcas/Categorias, se quiser):
+          {made.brands.length > 0 && <> marcas: {made.brands.join(", ")}.</>}
+          {made.classes.length > 0 && <> classes: {made.classes.join(", ")}.</>}
+          {made.categories.length > 0 && <> categorias: {made.categories.join(", ")}.</>}
+        </p>
+      )}
       {report.updated.length > 0 && (
         <p style={{ margin: "8px 0 0" }}>
           {report.updated.length} {report.updated.length === 1 ? "produto existente conferido" : "produtos existentes conferidos"}
@@ -206,13 +234,15 @@ function ErpRefreshResult({ report, onClose }: { report: ErpRefreshReport; onClo
           {stock > 0 ? `, estoque mudou em ${stock} ${stock === 1 ? "numeração" : "numerações"}` : ", sem mudança de estoque"}.
         </p>
       )}
-      {report.needsReview.length > 0 && (
-        <>
-          <p style={{ margin: "8px 0 0" }}><strong>{report.needsReview.length} {report.needsReview.length === 1 ? "item precisa" : "itens precisam"} de ajuste</strong> e não {report.needsReview.length === 1 ? "foi importado" : "foram importados"}:</p>
-          <ul style={{ margin: "4px 0 0", paddingLeft: 20 }}>
-            {report.needsReview.map((r, i) => <li key={i}>{r.brand} · {r.reference}: {r.reason}</li>)}
-          </ul>
-        </>
+      {report.attention > 0 && (
+        <p style={{ margin: "8px 0 0" }}>
+          <strong>{report.attention} {report.attention === 1 ? "produto precisa" : "produtos precisam"} da sua atenção</strong>: clique no aviso acima da lista para ver o motivo de cada um.
+        </p>
+      )}
+      {unread.length > 0 && (
+        <ul style={{ margin: "8px 0 0", paddingLeft: 20 }}>
+          {unread.map((r, i) => <li key={i}>{r.brand}: {r.reason}</li>)}
+        </ul>
       )}
     </div>
   );
@@ -229,6 +259,15 @@ export default function ProductsAdmin() {
   const [status, setStatus] = useState<"all" | "active" | "inactive">("active");
   const [refreshing, setRefreshing] = useState(false);
   const [refreshReport, setRefreshReport] = useState<ErpRefreshReport | null>(null);
+  const [issues, setIssues] = useState<ErpIssue[]>([]);
+  const [attentionPicked, setAttention] = useState(false);
+
+  const loadIssues = () => api.admin.erpIssues().then(setIssues, () => setIssues([]));
+  useEffect(() => {
+    void loadIssues();
+  }, []);
+  // sem pendências, o filtro de atenção não tem o que mostrar
+  const attention = attentionPicked && issues.length > 0;
 
   /** Busca no ERP os itens marcados para o site e confere os já importados; produto novo entra desativado (falta foto e descrição). */
   async function refreshFromErp() {
@@ -238,7 +277,7 @@ export default function ProductsAdmin() {
     try {
       const report = await api.admin.refreshFromErp();
       setRefreshReport(report);
-      await reload();
+      await Promise.all([reload(), loadIssues()]);
       if (report.created.length > 0) setStatus("inactive"); // os novos nascem desativados: leva a lista até eles
     } catch (e) {
       setError((e as Error).message);
@@ -247,15 +286,21 @@ export default function ProductsAdmin() {
     }
   }
 
+  const issueOf = useMemo(() => new Map(issues.filter((i) => i.productId).map((i) => [i.productId!, i])), [issues]);
+  const matches = (text: string) => text.toLowerCase().includes(query.trim().toLowerCase());
   const visible = useMemo(
     () =>
       items.filter(
         (p) =>
-          (status === "all" || (status === "active") === (p.active ?? true)) &&
-          `${p.name} ${p.reference ?? ""} ${p.brand?.name ?? ""} ${p.category.name}`.toLowerCase().includes(query.trim().toLowerCase()),
+          (attention ? issueOf.has(p.id) : status === "all" || (status === "active") === (p.active ?? true)) &&
+          matches(`${p.name} ${p.reference ?? ""} ${p.brand?.name ?? ""} ${p.category.name}`),
       ),
-    [items, query, status],
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- matches depende só de query
+    [items, query, status, attention, issueOf],
   );
+  /** Pendências sem produto no site (não importados): entram como linhas próprias quando o filtro de atenção está ligado. */
+  const missing = attention ? issues.filter((i) => !(i.productId && items.some((p) => p.id === i.productId)) && matches(`${i.brandName} ${i.ref} ${i.reason}`)) : [];
+
 
   /** Liga/desliga o produto na própria tabela: a tela muda na hora e volta atrás se a API recusar. */
   async function setActive(p: Product, active: boolean) {
@@ -319,17 +364,26 @@ export default function ProductsAdmin() {
       />
       <Notice error={error} />
       {refreshReport && <ErpRefreshResult report={refreshReport} onClose={() => setRefreshReport(null)} />}
+      {issues.length > 0 && (
+        <button type="button" className={`attention-banner${attention ? " is-on" : ""}`} aria-pressed={attention} onClick={() => setAttention((on) => !on)}>
+          <IssueGlyph />
+          <span>Há <strong>{issues.length}</strong> {issues.length === 1 ? "produto que precisa" : "produtos que precisam"} da sua atenção.</span>
+          <span className="attention-banner-action">{attention ? "Mostrar todos os produtos" : "Ver quais são"}</span>
+        </button>
+      )}
       <div className="toolbar">
         <input type="search" placeholder="Buscar por nome, referência, marca ou categoria" value={query} onChange={(e) => setQuery(e.target.value)} />
-        <select value={status} onChange={(e) => setStatus(e.target.value as typeof status)} aria-label="Filtrar por situação">
-          <option value="all">Todos</option>
-          <option value="active">À venda</option>
-          <option value="inactive">Desativados</option>
-        </select>
+        {!attention && (
+          <select value={status} onChange={(e) => setStatus(e.target.value as typeof status)} aria-label="Filtrar por situação">
+            <option value="all">Todos</option>
+            <option value="active">À venda</option>
+            <option value="inactive">Desativados</option>
+          </select>
+        )}
       </div>
       {loading ? (
         <p>Carregando…</p>
-      ) : visible.length === 0 ? (
+      ) : visible.length === 0 && missing.length === 0 ? (
         <EmptyState>{items.length === 0 ? "Nenhum produto cadastrado ainda." : "Nenhum produto encontrado com esse filtro."}</EmptyState>
       ) : (
         <div className="table-wrap">
@@ -338,12 +392,19 @@ export default function ProductsAdmin() {
               <tr><th /><th>Produto</th><th>Classe › categoria</th><th>Preço</th><th>Estoque</th><th>Estoque atualizado em</th><th>Situação</th><th /></tr>
             </thead>
             <tbody>
+              {missing.map((i) => (
+                <tr key={i.id} className="is-issue">
+                  <td />
+                  <td><strong>{i.brandName} · {i.ref}</strong> <IssueIcon reason={i.reason} /><br /><small>Ainda não está no painel</small></td>
+                  <td colSpan={6}><small>{i.reason.split("\n")[0]}</small></td>
+                </tr>
+              ))}
               {visible.map((p) => {
                 const stock = p.variants?.reduce((sum, v) => sum + v.stock, 0) ?? 0;
                 return (
                   <tr key={p.id} className={p.active === false ? "is-off" : undefined}>
                     <td><Thumb url={p.images[0] ?? p.colors?.find((c) => c.images.length > 0)?.images[0]} /></td>
-                    <td><strong>{p.name}</strong>{p.badge && <> <Badge tone="warn">{BADGE_LABEL[p.badge]}</Badge></>}<br /><small>{[p.brand?.name, p.reference].filter(Boolean).join(" · ") || p.slug}</small></td>
+                    <td><strong>{p.name}</strong>{issueOf.has(p.id) && <> <IssueIcon reason={issueOf.get(p.id)!.reason} /></>}{p.badge && <> <Badge tone="warn">{BADGE_LABEL[p.badge]}</Badge></>}<br /><small>{[p.brand?.name, p.reference].filter(Boolean).join(" · ") || p.slug}</small></td>
                     <td>{p.category.productClass?.name && <small>{p.category.productClass.name} › </small>}{p.category.name}<br /><small>{segmentLabel(p.ageGroup, p.gender)}</small></td>
                     <td>{formatPrice(p.price)}{p.compareAtPrice && <><br /><small className="strike">{formatPrice(p.compareAtPrice)}</small></>}</td>
                     <td className="stock-cell">

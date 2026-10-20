@@ -4,7 +4,7 @@ import { prisma } from "../../lib/prisma.js";
 import { AppError } from "../../lib/errors.js";
 import { requireAdmin, requirePanelPermission } from "../../middlewares/auth.js";
 import { erpConfigured } from "../erp/client.js";
-import { refreshFromErp } from "../erp/sync.js";
+import { listIssues, refreshFromErp } from "../erp/sync.js";
 import { getSiteSettings, saveSiteSettings } from "../settings/settings.service.js";
 import { recordMovement } from "../stock/stock.service.js";
 import { stockRouter } from "../stock/stock.routes.js";
@@ -238,6 +238,11 @@ const withSkus = (productSlug: string, variants: z.infer<typeof variantBody>[]) 
 adminRouter.post("/products/erp-refresh", async (_req, res) => {
   if (!erpConfigured()) throw new AppError("A integração com o ERP não está configurada neste servidor (falta ERP_URL).", 503);
   res.json(await refreshFromErp());
+});
+
+/** Pendências da importação do ERP (aviso "precisam da sua atenção" em Produtos). */
+adminRouter.get("/products/erp-issues", async (_req, res) => {
+  res.json(await listIssues());
 });
 
 adminRouter.get("/products", async (_req, res) => {

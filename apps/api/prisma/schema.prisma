@@ -276,6 +276,8 @@ model Product {
   /// Nome como vem do ERP (descrição sem a cor, com a referência). Só o ERP muda; `name` é o nome exibido no site.
   erpName          String?
   erpSyncedAt      DateTime?
+  /// Pendência da última atualização com o ERP (aviso no topo de Produtos), se houver.
+  erpIssue         ErpIssue?
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @updatedAt
 
@@ -468,4 +470,23 @@ model OrderEvent {
 
   @@index([orderId, createdAt])
   @@map("order_events")
+}
+
+/// Pendência da atualização com o ERP: produto que não pôde ser importado (ou foi importado com ressalvas) e o motivo.
+/// A chave é a do pai (marca + referência); some sozinha quando a atualização seguinte não encontra mais o problema.
+model ErpIssue {
+  id        String   @id @default(uuid())
+  brandCode String
+  ref       String
+  brandName String
+  /// Motivos, um por linha.
+  reason    String
+  /// Produto do site, quando a pendência é de um produto já importado.
+  productId String?  @unique
+  product   Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([brandCode, ref])
+  @@map("erp_issues")
 }

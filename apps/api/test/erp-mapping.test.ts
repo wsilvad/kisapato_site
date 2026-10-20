@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { ErpItem } from "../src/modules/erp/client.js";
-import { buildPlan, categoryFor, clampStock, parentName, segmentFor, sizeSchemeFor, titleCase } from "../src/modules/erp/mapping.js";
+import { buildPlan, categoryFor, categoryNameFor, classFor, clampStock, parentName, segmentFor, sizeSchemeFor, titleCase } from "../src/modules/erp/mapping.js";
 import { parseXml } from "../src/modules/erp/xml.js";
 
 const item = (over: Partial<ErpItem> = {}): ErpItem => ({
@@ -50,7 +50,10 @@ test("ERP: plano do pai agrupa as cores, usa o menor preço e avisa de saldo neg
 });
 
 test("ERP: tipo sem categoria e grade mista impedem a gravação", () => {
-  assert.ok(buildPlan([{ item: item({ type: "PERFUME" }), stock: new Map() }]).errors.length > 0);
+  const unknown = buildPlan([{ item: item({ type: "PERFUME" }), stock: new Map() }]);
+  assert.equal(unknown.product.category, "Perfume", "tipo fora do de-para vira categoria com o nome do tipo");
+  assert.equal(unknown.errors.length, 0);
+  assert.ok(buildPlan([{ item: item({ type: "" }), stock: new Map() }]).errors.length > 0, "sem tipo não dá para classificar");
   assert.ok(buildPlan([{ item: item({ sizes: [{ code: "1", label: "95", ean: "" }, { code: "0", label: "U", ean: "" }] }), stock: new Map() }]).errors.length > 0);
 });
 
@@ -79,4 +82,15 @@ test("ERP: o nome do site é tipo + marca, sem referência, e o nome do ERP fica
   assert.equal(buildPlan([{ item: item(), stock: new Map() }]).product.name, "Tênis Luz da Lua");
   const kids = buildPlan([{ item: item({ type: "TENIS INFANTIL", description: "TENIS INFANTIL KLIN 199106000 ROSA", color: "ROSA", supplierRef: "199106000", gender: "MENINA INFANTIL" }), stock: new Map() }], { brandName: "Klin" });
   assert.equal(kids.product.name, "Tênis Infantil Klin");
+});
+
+test("de-para: tipo do ERP vira categoria e classe do site", () => {
+  assert.equal(categoryNameFor("BOLSA"), "Bolsas");
+  assert.equal(categoryNameFor("NECESSAIRE"), "Necessaires");
+  assert.equal(categoryNameFor("SOBRETUDO"), "Sobretudo", "fora da tabela: o próprio tipo em título");
+  assert.equal(classFor({ type: "BOLSA", group: "CALCADO" }), "Acessórios", "o tipo manda sobre o grupo (bolsa lançada no grupo calçado)");
+  assert.equal(classFor({ type: "TENIS", group: "ACESSORIOS" }), "Calçados");
+  assert.equal(classFor({ type: "CAMISETA", group: "CONFECCAO" }), "Confecção");
+  assert.equal(classFor({ type: "SOBRETUDO", group: "ACESSORIOS" }), "Acessórios", "tipo desconhecido usa o grupo");
+  assert.equal(classFor({ type: "SOBRETUDO", group: "" }), "Outros");
 });

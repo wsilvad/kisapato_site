@@ -477,5 +477,19 @@ export interface ErpRefreshReport {
   flaggedItems: number;
   created: { name: string; reference: string; colors: number }[];
   updated: { name: string; reference: string; newColors: number; stockChanges: number }[];
+  /** Cadastros que a atualização criou no site por não existirem. */
+  catalogCreated: { brands: string[]; classes: string[]; categories: string[] };
   needsReview: { reference: string; brand: string; reason: string }[];
+  /** Pendências abertas depois da atualização. */
+  attention: number;
+}
+
+/** Pendência da importação do ERP: produto que não entrou (sem `productId`) ou entrou com ressalvas. `reason`: um motivo por linha. */
+export interface ErpIssue {
+  id: string;
+  brandName: string;
+  ref: string;
+  reason: string;
+  productId: string | null;
+  updatedAt: string;
 }

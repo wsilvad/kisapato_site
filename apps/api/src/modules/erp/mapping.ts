@@ -46,15 +46,34 @@ export const typeName = (item: Pick<ErpItem, "type">) => titleCase(item.type);
  */
 export const displayName = (item: Pick<ErpItem, "type">, brandName: string) => `${typeName(item)} ${brandName}`.trim();
 
-/** Tipo do ERP → categoria do site (null = ainda sem categoria definida). */
+/**
+ * De-para do tipo do ERP para a categoria do site ("BOLSA" → "Bolsas"). Tipo fora da tabela ganha uma categoria com o próprio
+ * nome do tipo em título (ex.: "NECESSAIRE" → "Necessaire"), criada na primeira importação.
+ */
 const CATEGORY_BY_TYPE: Record<string, string> = {
   TENIS: "Tênis", "TENIS INFANTIL": "Tênis", "TENIS BOTINHA": "Tênis",
   SANDALIA: "Sandálias", CHINELO: "Chinelo", "CHINELO PELO": "Chinelo", "CHINELO INFANTIL": "Chinelo",
   BOTA: "Botas", "BOTA INFANTIL": "Botas", SAPATO: "Sapato", MOCASSIM: "Sapato", LOAFER: "Sapato",
   SAPATILHA: "Sapatilha", SAPATENIS: "Sapatênis", MULE: "Mule", SLINGBACK: "Slingback",
-  CHANEL: "Chanel", TAMANCO: "Tamancos", BOLSA: "Bolsas", MOCHILA: "Mochilas",
+  CHANEL: "Chanel", TAMANCO: "Tamancos", CLOG: "Clogs", CROCS: "Clogs", CHUTEIRA: "Chuteiras", PANTUFA: "Pantufas",
+  BOLSA: "Bolsas", MOCHILA: "Mochilas", CARTEIRA: "Carteiras", MALA: "Malas", CINTO: "Cintos", NECESSAIRE: "Necessaires",
+  MEIA: "Meias", "MEIA CALÇA": "Meias", "MEIA CALCA": "Meias", BONÉ: "Bonés", BONE: "Bonés", ÓCULOS: "Óculos", OCULOS: "Óculos",
+  CAMISETA: "Camisetas", SHORT: "Shorts", BERMUDA: "Bermudas", CALÇA: "Calças", CALCA: "Calças", LEGGING: "Leggings", TOP: "Tops", MACACAO: "Macacões", JAQUETA: "Jaquetas",
 };
 export const categoryFor = (type: string): string | null => CATEGORY_BY_TYPE[type.trim().toUpperCase()] ?? null;
+/** Categoria do site para o tipo: a do de-para ou, na falta, o próprio tipo em título. */
+export const categoryNameFor = (type: string): string => categoryFor(type) ?? titleCase(type);
+
+/** Classe do site (Calçados, Acessórios, Confecção) da categoria. O tipo manda; o grupo do ERP só decide o que o tipo não resolve. */
+const CLASS_BY_CATEGORY: Record<string, string> = {
+  Tênis: "Calçados", Sandálias: "Calçados", Chinelo: "Calçados", Botas: "Calçados", Sapato: "Calçados", Sapatilha: "Calçados", Sapatênis: "Calçados", Mule: "Calçados",
+  Slingback: "Calçados", Chanel: "Calçados", Tamancos: "Calçados", Clogs: "Calçados", Chuteiras: "Calçados", Pantufas: "Calçados",
+  Bolsas: "Acessórios", Mochilas: "Acessórios", Carteiras: "Acessórios", Malas: "Acessórios", Cintos: "Acessórios", Necessaires: "Acessórios", Meias: "Acessórios", Bonés: "Acessórios", Óculos: "Acessórios",
+  Camisetas: "Confecção", Shorts: "Confecção", Bermudas: "Confecção", Calças: "Confecção", Leggings: "Confecção", Tops: "Confecção", Macacões: "Confecção", Jaquetas: "Confecção",
+};
+const CLASS_BY_GROUP: Record<string, string> = { CALCADO: "Calçados", CALCADOS: "Calçados", "CALÇADO": "Calçados", "CALÇADOS": "Calçados", ACESSORIOS: "Acessórios", "ACESSÓRIOS": "Acessórios", CONFECCAO: "Confecção", "CONFECÇÃO": "Confecção" };
+export const classFor = (item: Pick<ErpItem, "type" | "group">): string =>
+  CLASS_BY_CATEGORY[categoryNameFor(item.type)] ?? CLASS_BY_GROUP[item.group.trim().toUpperCase()] ?? (item.group.trim() ? titleCase(item.group) : "Outros");
 
 export type AgeGroup = "ADULTO" | "INFANTIL";
 export type Gender = "FEMININO" | "MASCULINO" | "UNISSEX";
@@ -121,6 +140,8 @@ export interface ImportPlan {
     slug: string;
     reference: string;
     category: string | null;
+    /** Classe do site da categoria (Calçados, Acessórios…). */
+    className: string;
     ageGroup: AgeGroup | null;
     gender: Gender | null;
     sizeScheme: SizeScheme | null;
@@ -154,8 +175,8 @@ export function buildPlan(inputs: PlanInput[], { brandName }: PlanOptions = {}):
   const warnings: string[] = [];
   const errors: string[] = [];
 
-  const category = categoryFor(first.type);
-  if (!category) errors.push(`Tipo "${first.type}" ainda sem categoria no site.`);
+  const category = first.type.trim() ? categoryNameFor(first.type) : null;
+  if (!category) errors.push("Item sem tipo no ERP.");
   const segment = segmentFor(first);
   if (!segment) errors.push(`Gênero "${first.gender}" não reconhecido.`);
 
@@ -231,6 +252,7 @@ export function buildPlan(inputs: PlanInput[], { brandName }: PlanOptions = {}):
       slug: slugify(erpName),
       reference: first.supplierRef,
       category,
+      className: classFor(first),
       ageGroup: segment?.ageGroup ?? null,
       gender: segment?.gender ?? null,
       sizeScheme: scheme === "MISTA" ? null : scheme,
