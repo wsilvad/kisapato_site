@@ -84,6 +84,7 @@ model Profile {
   cards                     SavedCard[]
   codes                     VerificationCode[]
   recoveryCodes             RecoveryCode[]
+  favorites                 Favorite[]
   createdAt                 DateTime           @default(now())
   updatedAt                 DateTime           @updatedAt
 
@@ -267,6 +268,7 @@ model Product {
   /// Legado (ver `Audience.products`); a loja usa `ageGroup` e `gender`.
   audiences        Audience[]
   variants         ProductVariant[]
+  favorites        Favorite[]
   /// Fotos de cada cor (até 4); a ordem das cores define a primeira, que abre a página do produto.
   colors           ProductColor[]
   sizeScheme       SizeScheme       @default(NUMERACAO)
@@ -493,4 +495,17 @@ model ErpIssue {
 
   @@unique([brandCode, ref])
   @@map("erp_issues")
+}
+
+/// Produto favoritado por um cliente logado (visitantes sem conta guardam os favoritos só no aparelho).
+model Favorite {
+  profileId String   @db.Uuid
+  profile   Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@id([profileId, productId])
+  @@index([profileId, createdAt])
+  @@map("favorites")
 }

@@ -330,3 +330,38 @@ accountRouter.delete("/cards/:id", async (req, res) => {
   });
   res.status(204).end();
 });
+
+/* ---------- Favoritos ---------- */
+
+const slugList = z.object({ slugs: z.array(z.string().min(1).max(200)).max(200) });
+
+/** Slugs dos favoritos, do mais novo para o mais antigo (só produtos ativos). */
+const favoriteSlugs = async (profileId: string) =>
+  (await prisma.favorite.findMany({ where: { profileId, product: { active: true } }, orderBy: { createdAt: "desc" }, select: { product: { select: { slug: true } } } })).map((f) => f.product.slug);
+
+accountRouter.get("/favorites", async (req, res) => {
+  res.json({ slugs: await favoriteSlugs(me(req)) });
+});
+
+/** Junta os favoritos que o aparelho tinha (antes do login) aos da conta e devolve a lista final. */
+accountRouter.post("/favorites/merge", async (req, res) => {
+  const profileId = me(req);
+  const { slugs } = slugList.parse(req.body);
+  const products = await prisma.product.findMany({ where: { slug: { in: slugs }, active: true }, select: { id: true } });
+  await prisma.favorite.createMany({ data: products.map((p) => ({ profileId, productId: p.id })), skipDuplicates: true });
+  res.json({ slugs: await favoriteSlugs(profileId) });
+});
+
+accountRouter.put("/favorites/:slug", async (req, res) => {
+  const profileId = me(req);
+  const product = await prisma.product.findUnique({ where: { slug: String(req.params.slug) }, select: { id: true } });
+  if (!product) throw new AppError("Produto não encontrado", 404);
+  await prisma.favorite.upsert({ where: { profileId_productId: { profileId, productId: product.id } }, create: { profileId, productId: product.id }, update: {} });
+  res.status(204).end();
+});
+
+accountRouter.delete("/favorites/:slug", async (req, res) => {
+  const profileId = me(req);
+  await prisma.favorite.deleteMany({ where: { profileId, product: { slug: String(req.params.slug) } } });
+  res.status(204).end();
+});

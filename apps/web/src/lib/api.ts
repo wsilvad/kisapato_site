@@ -152,6 +152,10 @@ export const api = {
   resetPassword: (data: { identifier: string; code: string; newPassword: string }) => request<{ ok: true }>("/auth/reset", { method: "POST", json: data }),
 
   account: {
+    favorites: () => request<{ slugs: string[] }>("/account/favorites"),
+    mergeFavorites: (slugs: string[]) => request<{ slugs: string[] }>("/account/favorites/merge", { method: "POST", json: { slugs } }),
+    addFavorite: (slug: string) => request<void>(`/account/favorites/${encodeURIComponent(slug)}`, { method: "PUT" }),
+    removeFavorite: (slug: string) => request<void>(`/account/favorites/${encodeURIComponent(slug)}`, { method: "DELETE" }),
     updateProfile: (data: { name: string; cpf: string; phone?: string }) => request<User>("/account/profile", { method: "PUT", json: data }),
     changePassword: (data: { currentPassword: string; newPassword: string }) => request<AuthResult>("/account/password", { method: "PUT", json: data }),
     sendPhoneCode: () => request<{ ok: true }>("/account/phone/send-code", { method: "POST" }),

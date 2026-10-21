@@ -4,11 +4,13 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { ProductCard } from "@/components/ProductCard";
 import { api } from "@/lib/api";
+import { useSession } from "@/lib/session";
 import { useFavorites } from "@/lib/favorites";
 import type { Product } from "@/types/product";
 
 export default function FavoritosPage() {
   const { slugs } = useFavorites();
+  const { user } = useSession();
   const [products, setProducts] = useState<Product[] | null>(null);
   const key = slugs.join(",");
 
@@ -35,7 +37,7 @@ export default function FavoritosPage() {
   return (
     <div className="page">
       <h1 className="page-title">Favoritos</h1>
-      <p className="page-count">Os favoritos ficam salvos neste aparelho.</p>
+      <p className="page-count">{user ? "Seus favoritos ficam salvos na sua conta." : "Os favoritos ficam salvos neste aparelho. Entre na sua conta para guardá-los e vê-los em qualquer lugar."}</p>
       {products === null ? (
         <p>Carregando…</p>
       ) : products.length === 0 ? (
