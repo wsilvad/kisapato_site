@@ -2,6 +2,7 @@ import Link from "next/link";
 import { formatPrice, installmentText } from "@/lib/format";
 import { CardGallery } from "@/components/CardGallery";
 import { FavoriteButton } from "@/components/FavoriteButton";
+import { TrackCard } from "@/components/TrackCard";
 import { BADGE_LABEL, type Product } from "@/types/product";
 
 export function ProductCard({ product }: { product: Product }) {
@@ -9,10 +10,10 @@ export function ProductCard({ product }: { product: Product }) {
   const href = `/produtos/${product.slug}`;
 
   return (
-    <article className="card">
+    <TrackCard productId={product.id} price={Number(product.price)}>
       {product.images.length > 0 ? (
         <CardGallery images={product.images} name={product.name} href={href}>
-          <FavoriteButton slug={product.slug} name={product.name} />
+          <FavoriteButton slug={product.slug} name={product.name} productId={product.id} price={Number(product.price)} />
           {badge && <span className={`badge${badge === "PROMOCAO" ? " badge-sale" : ""}`}>{BADGE_LABEL[badge]}</span>}
         </CardGallery>
       ) : (
@@ -24,7 +25,7 @@ export function ProductCard({ product }: { product: Product }) {
             </svg>
             <span className="card-photo-label">Foto do produto</span>
           </Link>
-          <FavoriteButton slug={product.slug} name={product.name} />
+          <FavoriteButton slug={product.slug} name={product.name} productId={product.id} price={Number(product.price)} />
           {badge && <span className={`badge${badge === "PROMOCAO" ? " badge-sale" : ""}`}>{BADGE_LABEL[badge]}</span>}
         </div>
       )}
@@ -44,6 +45,6 @@ export function ProductCard({ product }: { product: Product }) {
         </div>
         <span className="card-installments">{installmentText(product.price)}</span>
       </Link>
-    </article>
+    </TrackCard>
   );
 }

@@ -1,0 +1,229 @@
+{
+  "uid": "ks-4-carrinho",
+  "title": "Ki Sapato · 4 Carrinho",
+  "description": "Sacolas abandonadas e itens colocados e retirados.",
+  "tags": [
+    "ki-sapato",
+    "bi"
+  ],
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": true,
+  "timezone": "America/Sao_Paulo",
+  "time": {
+    "from": "now-30d",
+    "to": "now"
+  },
+  "refresh": "5m",
+  "templating": {
+    "list": [
+      {
+        "name": "DS_KI_SAPATO",
+        "label": "Fonte de dados",
+        "type": "datasource",
+        "query": "postgres",
+        "current": {
+          "text": "Ki Sapato (BI)",
+          "value": "ki-sapato-bi"
+        },
+        "hide": 0
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Carrinhos abandonados",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 8,
+        "h": 4
+      },
+      "datasource": {
+        "type": "postgres",
+        "uid": "${DS_KI_SAPATO}"
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "values": false
+        },
+        "colorMode": "none",
+        "graphMode": "none"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "postgres",
+            "uid": "${DS_KI_SAPATO}"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "SELECT count(*) AS \"Carrinhos\" FROM bi.v1_abandoned_carts"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Valor parado (R$)",
+      "gridPos": {
+        "x": 8,
+        "y": 0,
+        "w": 8,
+        "h": 4
+      },
+      "datasource": {
+        "type": "postgres",
+        "uid": "${DS_KI_SAPATO}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyBRL"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "values": false
+        },
+        "colorMode": "none",
+        "graphMode": "none"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "postgres",
+            "uid": "${DS_KI_SAPATO}"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "SELECT coalesce(sum(cart_value), 0) AS \"Valor\" FROM bi.v1_abandoned_carts"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Chegaram ao checkout e pararam",
+      "gridPos": {
+        "x": 16,
+        "y": 0,
+        "w": 8,
+        "h": 4
+      },
+      "datasource": {
+        "type": "postgres",
+        "uid": "${DS_KI_SAPATO}"
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "values": false
+        },
+        "colorMode": "none",
+        "graphMode": "none"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "postgres",
+            "uid": "${DS_KI_SAPATO}"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "SELECT count(*) FILTER (WHERE stage = 'checkout') AS \"No checkout\" FROM bi.v1_abandoned_carts"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "table",
+      "title": "Itens mais abandonados",
+      "gridPos": {
+        "x": 0,
+        "y": 4,
+        "w": 12,
+        "h": 9
+      },
+      "datasource": {
+        "type": "postgres",
+        "uid": "${DS_KI_SAPATO}"
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {},
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "postgres",
+            "uid": "${DS_KI_SAPATO}"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "SELECT item_name AS \"Item\", count(*) AS \"Sacolas\", sum(line_value) AS \"Valor (R$)\" FROM bi.v1_cart_items WHERE abandoned GROUP BY 1 ORDER BY 3 DESC LIMIT 15"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "table",
+      "title": "Colocados e retirados",
+      "gridPos": {
+        "x": 12,
+        "y": 4,
+        "w": 12,
+        "h": 9
+      },
+      "datasource": {
+        "type": "postgres",
+        "uid": "${DS_KI_SAPATO}"
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {},
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "postgres",
+            "uid": "${DS_KI_SAPATO}"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "SELECT product_name AS \"Produto\", sum(adds) AS \"Colocou\", sum(removes) AS \"Retirou\", round(sum(removes)::numeric / nullif(sum(adds), 0), 2) AS \"Taxa de retirada\" FROM bi.v1_cart_add_remove WHERE $__timeFilter(date_sp) GROUP BY 1 ORDER BY 2 DESC LIMIT 15"
+        }
+      ]
+    }
+  ]
+}

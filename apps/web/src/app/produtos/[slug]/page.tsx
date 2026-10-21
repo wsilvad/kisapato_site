@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { ProductCard } from "@/components/ProductCard";
 import { ProductDetails, ProductSpecs } from "@/components/pdp/ProductDetails";
 import { ProductPurchase } from "@/components/pdp/ProductPurchase";
+import { TrackProductView } from "@/components/TrackProductView";
 import { api } from "@/lib/api";
 import { segmentLabel } from "@/lib/segment";
 import type { Product } from "@/types/product";
@@ -49,6 +50,7 @@ export default async function ProdutoPage({ params }: { params: Promise<{ slug: 
         <span aria-current="page">{product.name}</span>
       </nav>
 
+      <TrackProductView product={product} />
       <div className="pdp-grid">
         <ProductPurchase product={product} details={<ProductDetails description={product.description} care={product.careInstructions ?? null} />} belowPhoto={<ProductSpecs specs={specs} />} />
       </div>

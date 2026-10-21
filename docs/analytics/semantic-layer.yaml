@@ -1,0 +1,384 @@
+# Camada semântica das métricas do site Ki Sapato (gerada; ver docs/analytics/README.md).
+# Formato próprio, simples de converter para LookML, Cube, dbt MetricFlow ou modelo do Power BI.
+version: 1
+timezone: America/Sao_Paulo
+currency: BRL
+schema: bi
+models:
+  - name: products
+    view: bi.v1_products
+    title: "Produtos (dimensão)"
+    question: "Quais produtos existem, em que categoria e marca, a que preço e com quanto estoque?"
+    grain: "1 linha por produto (estado atual)"
+    time_dimension: null
+    default_order: "product_name"
+    dimensions:
+      - { name: product_id, type: "text", description: "Id do produto (products.id)." }
+      - { name: product_name, type: "text", description: "Nome exibido na loja." }
+      - { name: slug, type: "text", description: "Endereço do produto na loja." }
+      - { name: reference, type: "text", description: "Referência do fornecedor, quando houver." }
+      - { name: category, type: "text", description: "Categoria." }
+      - { name: brand, type: "text", description: "Marca (nula se o produto não tem marca)." }
+      - { name: active, type: "boolean", description: "Produto ativo na loja." }
+      - { name: badge, type: "text", description: "Selo: LANCAMENTO, PROMOCAO, DESTAQUE ou nulo." }
+    measures:
+      - { name: price, type: "numeric(10,2)", aggregation: none, description: "Preço atual em reais.", not_additive_because: "preço unitário" }
+      - { name: compare_at_price, type: "numeric(10,2)", aggregation: none, description: "Preço \"de\" (riscado) em reais, se houver.", not_additive_because: "preço unitário" }
+      - { name: stock_total, type: "integer", aggregation: sum, description: "Unidades em estoque somando todas as numerações." }
+    caveats:
+      - "Use para juntar nomes, categorias e marcas às outras views pelo product_id."
+  - name: traffic_daily
+    view: bi.v1_traffic_daily
+    title: "Tráfego por dia"
+    question: "Quanta gente acessa o site, de onde vem e em que aparelho?"
+    grain: "dia × aparelho × origem"
+    time_dimension: date_sp
+    default_order: "date_sp DESC, sessions DESC"
+    dimensions:
+      - { name: date_sp, type: "date", description: "Dia da visita (fuso de Brasília)." }
+      - { name: device_type, type: "text", description: "mobile, tablet, desktop ou desconhecido." }
+      - { name: source, type: "text", description: "Origem: utm_source, domínio de origem ou \"direto\"." }
+    measures:
+      - { name: sessions, type: "integer", aggregation: sum, description: "Visitas (30 minutos de inatividade encerram uma visita)." }
+      - { name: visitors, type: "integer", aggregation: none, description: "Visitantes anônimos distintos.", not_additive_because: "contagem de distintos: somar entre linhas conta a mesma pessoa mais de uma vez" }
+      - { name: new_visitors, type: "integer", aggregation: none, description: "Visitantes cuja primeira aparição foi neste dia.", not_additive_because: "visitantes que apareceram pela 1ª vez no dia; somar dias é válido, mas some entre origens só dentro do mesmo dia e aparelho" }
+      - { name: page_views, type: "integer", aggregation: sum, description: "Páginas abertas." }
+      - { name: sessions_with_product_view, type: "integer", aggregation: sum, description: "Visitas que abriram ao menos um produto." }
+      - { name: sessions_with_issues, type: "integer", aggregation: sum, description: "Visitas com erro, cliques repetidos, 404 ou imagem quebrada." }
+      - { name: bounced_sessions, type: "integer", aggregation: sum, description: "Visitas de uma página só, sem ver produto nem usar a sacola." }
+    caveats:
+      - "Visita = sequência de eventos com até 30 minutos de intervalo."
+      - "Origem é utm_source, o domínio de origem ou 'direto'."
+      - "Robôs e quem ativou 'Não rastrear' ficam de fora."
+  - name: page_ranking
+    view: bi.v1_page_ranking
+    title: "Páginas mais acessadas"
+    question: "O que o cliente mais acessa?"
+    grain: "dia × caminho"
+    time_dimension: date_sp
+    default_order: "date_sp DESC, page_views DESC"
+    dimensions:
+      - { name: date_sp, type: "date", description: "Dia (fuso de Brasília)." }
+      - { name: path, type: "text", description: "Caminho da página (ids viram :id)." }
+    measures:
+      - { name: page_views, type: "integer", aggregation: sum, description: "Páginas abertas." }
+      - { name: visitors, type: "integer", aggregation: none, description: "Visitantes distintos.", not_additive_because: "contagem de distintos: somar entre linhas conta a mesma pessoa mais de uma vez" }
+    caveats:
+      - "Caminhos de produto têm o slug; ids longos viram :id."
+  - name: search_terms
+    view: bi.v1_search_terms
+    title: "Termos buscados"
+    question: "O que o cliente busca e o que não encontra?"
+    grain: "dia × termo"
+    time_dimension: date_sp
+    default_order: "date_sp DESC, searches DESC"
+    dimensions:
+      - { name: date_sp, type: "date", description: "Dia (fuso de Brasília)." }
+      - { name: search_term, type: "text", description: "Termo buscado, sem dados pessoais." }
+    measures:
+      - { name: searches, type: "integer", aggregation: sum, description: "Buscas." }
+      - { name: visitors, type: "integer", aggregation: none, description: "Visitantes distintos.", not_additive_because: "contagem de distintos: somar entre linhas conta a mesma pessoa mais de uma vez" }
+      - { name: avg_results, type: "numeric", aggregation: none, description: "Média de resultados devolvidos.", not_additive_because: "razão calculada por linha: some os numeradores e denominadores e divida de novo" }
+      - { name: zero_result_searches, type: "integer", aggregation: sum, description: "Buscas que não trouxeram nenhum produto." }
+    caveats:
+      - "E-mail, CPF e telefone digitados viram [removido]."
+      - "Termos com poucas buscas são ruído: veja o total no período."
+  - name: funnel
+    view: bi.v1_funnel
+    title: "Funil de compra"
+    question: "Em que etapa o cliente desiste antes de comprar?"
+    grain: "dia × aparelho × origem × etapa"
+    time_dimension: date_sp
+    default_order: "date_sp DESC, step_order"
+    dimensions:
+      - { name: date_sp, type: "date", description: "Dia (fuso de Brasília)." }
+      - { name: device_type, type: "text", description: "mobile, tablet, desktop ou desconhecido." }
+      - { name: source, type: "text", description: "Origem da visita." }
+      - { name: step_order, type: "integer", description: "Ordem da etapa (1 a 6)." }
+      - { name: step, type: "text", description: "Nome da etapa." }
+    measures:
+      - { name: sessions, type: "integer", aggregation: sum, description: "Visitas que chegaram à etapa." }
+      - { name: sessions_previous_step, type: "integer", aggregation: sum, description: "Visitas na etapa anterior." }
+      - { name: pct_of_previous_step, type: "numeric", aggregation: none, description: "% que passou da etapa anterior para esta.", not_additive_because: "razão calculada por linha: some os numeradores e denominadores e divida de novo" }
+      - { name: pct_of_visits, type: "numeric", aggregation: none, description: "% das visitas que chegou a esta etapa.", not_additive_because: "razão calculada por linha: some os numeradores e denominadores e divida de novo" }
+    caveats:
+      - "Some sessions por etapa e depois calcule a taxa; não some os percentuais."
+      - "A etapa 'Escolheu pagamento' só tem dados quando o checkout com pagamento estiver no ar."
+      - "A compra é gravada pelo servidor; sem os cabeçalhos da visita ela não entra no funil."
+  - name: abandoned_carts
+    view: bi.v1_abandoned_carts
+    title: "Carrinhos abandonados"
+    question: "Quanto dinheiro está parado em sacolas que não viraram compra?"
+    grain: "1 linha por visitante com sacola abandonada (últimos 30 dias)"
+    time_dimension: date_sp
+    default_order: "last_update DESC"
+    dimensions:
+      - { name: visitor_key, type: "text", description: "Identificador pseudonimizado do visitante (não é dado pessoal)." }
+      - { name: date_sp, type: "date", description: "Dia da última mudança na sacola." }
+      - { name: last_update, type: "timestamp with time zone", description: "Última mudança na sacola." }
+      - { name: device_type, type: "text", description: "Aparelho." }
+      - { name: stage, type: "text", description: "checkout se entrou no checkout depois de montar a sacola; senão sacola." }
+    measures:
+      - { name: hours_since, type: "numeric", aggregation: none, description: "Horas desde a última mudança.", not_additive_because: "idade do retrato" }
+      - { name: cart_value, type: "numeric(10,2)", aggregation: sum, description: "Valor da sacola em reais." }
+      - { name: items_count, type: "integer", aggregation: sum, description: "Linhas (variações) na sacola." }
+    caveats:
+      - "Abandonado = sem mudança há mais de abandon_hours (padrão 24 h) e sem compra depois."
+      - "visitor_key é pseudonimizado: não identifica ninguém."
+      - "Compra sem os cabeçalhos da visita não é ligada ao visitante e pode deixar um carrinho como abandonado por engano."
+  - name: cart_items
+    view: bi.v1_cart_items
+    title: "Itens das sacolas"
+    question: "Quais itens ficam nas sacolas e não são comprados?"
+    grain: "visitante × item da sacola mais recente (últimos 30 dias)"
+    time_dimension: date_sp
+    default_order: "date_sp DESC"
+    dimensions:
+      - { name: visitor_key, type: "text", description: "Identificador pseudonimizado do visitante." }
+      - { name: date_sp, type: "date", description: "Dia da última mudança na sacola." }
+      - { name: product_id, type: "text", description: "Id do produto (ou slug em sacolas antigas)." }
+      - { name: variant_id, type: "text", description: "Variação (cor + numeração)." }
+      - { name: item_name, type: "text", description: "Nome do produto." }
+      - { name: abandoned, type: "boolean", description: "Sacola abandonada (ver view bi.v1_abandoned_carts)." }
+    measures:
+      - { name: price, type: "numeric(10,2)", aggregation: none, description: "Preço unitário em reais.", not_additive_because: "preço unitário" }
+      - { name: quantity, type: "integer", aggregation: sum, description: "Quantidade." }
+      - { name: line_value, type: "numeric(10,2)", aggregation: sum, description: "price × quantity." }
+    caveats:
+      - "Filtre abandoned = true para o que ficou parado."
+      - "product_id pode ser o slug em sacolas criadas antes da medição."
+    joins:
+      - { to: products, on: product_id, relationship: many_to_one }
+  - name: cart_add_remove
+    view: bi.v1_cart_add_remove
+    title: "Colocado e retirado da sacola"
+    question: "Quais produtos o cliente coloca e depois tira da sacola?"
+    grain: "dia × produto"
+    time_dimension: date_sp
+    default_order: "date_sp DESC, adds DESC"
+    dimensions:
+      - { name: date_sp, type: "date", description: "Dia (fuso de Brasília)." }
+      - { name: product_id, type: "text", description: "Id do produto." }
+      - { name: product_name, type: "text", description: "Nome do produto." }
+      - { name: category, type: "text", description: "Categoria." }
+      - { name: brand, type: "text", description: "Marca." }
+    measures:
+      - { name: adds, type: "integer", aggregation: sum, description: "Vezes que foi colocado na sacola." }
+      - { name: removes, type: "integer", aggregation: sum, description: "Vezes que foi retirado da sacola." }
+      - { name: remove_rate, type: "numeric", aggregation: none, description: "removes ÷ adds (pode passar de 1 se a sacola veio de outro dia).", not_additive_because: "razão calculada por linha: some os numeradores e denominadores e divida de novo" }
+    caveats:
+      - "remove_rate pode passar de 1 quando a sacola foi montada em outro dia."
+    joins:
+      - { to: products, on: product_id, relationship: many_to_one }
+  - name: product_engagement
+    view: bi.v1_product_engagement
+    title: "Engajamento por produto"
+    question: "Quais itens têm mais cliques, visualizações, favoritos e vendas?"
+    grain: "dia × produto"
+    time_dimension: date_sp
+    default_order: "date_sp DESC, views DESC"
+    dimensions:
+      - { name: date_sp, type: "date", description: "Dia (fuso de Brasília)." }
+      - { name: product_id, type: "text", description: "Id do produto." }
+      - { name: product_name, type: "text", description: "Nome do produto." }
+      - { name: category, type: "text", description: "Categoria." }
+      - { name: brand, type: "text", description: "Marca." }
+    measures:
+      - { name: impressions, type: "integer", aggregation: sum, description: "Vezes que o card apareceu em listas." }
+      - { name: clicks, type: "integer", aggregation: sum, description: "Cliques no card." }
+      - { name: ctr, type: "numeric", aggregation: none, description: "clicks ÷ impressions.", not_additive_because: "razão calculada por linha: some os numeradores e denominadores e divida de novo" }
+      - { name: views, type: "integer", aggregation: sum, description: "Aberturas da página do produto." }
+      - { name: unique_viewers, type: "integer", aggregation: none, description: "Visitantes distintos que abriram o produto.", not_additive_because: "contagem de distintos: somar entre linhas conta a mesma pessoa mais de uma vez (a soma por dia conta quem volta em outro dia de novo)" }
+      - { name: adds, type: "integer", aggregation: sum, description: "Colocações na sacola." }
+      - { name: fav_adds, type: "integer", aggregation: sum, description: "Favoritos adicionados." }
+      - { name: fav_removes, type: "integer", aggregation: sum, description: "Favoritos removidos." }
+      - { name: fav_net, type: "integer", aggregation: sum, description: "fav_adds − fav_removes." }
+      - { name: orders, type: "integer", aggregation: sum, description: "Pedidos não cancelados com o produto." }
+      - { name: units, type: "integer", aggregation: sum, description: "Unidades vendidas." }
+      - { name: revenue, type: "numeric(12,2)", aggregation: sum, description: "Receita em reais." }
+      - { name: margin_pct, type: "numeric", aggregation: none, description: "Margem do dia em % da receita.", not_additive_because: "razão calculada por linha: some os numeradores e denominadores e divida de novo" }
+    caveats:
+      - "CTR = clicks ÷ impressions. Exibições são amostradas (1 por card e página, depois de 1 s visível)."
+      - "Vendas vêm dos pedidos não cancelados."
+    joins:
+      - { to: products, on: product_id, relationship: many_to_one }
+  - name: product_scorecard
+    view: bi.v1_product_scorecard
+    title: "Índice de destaque"
+    question: "Quais itens merecem destaque na loja?"
+    grain: "1 linha por produto ativo (janela móvel)"
+    time_dimension: null
+    default_order: "score DESC"
+    dimensions:
+      - { name: product_id, type: "text", description: "Id do produto." }
+      - { name: product_name, type: "text", description: "Nome." }
+      - { name: category, type: "text", description: "Categoria." }
+      - { name: brand, type: "text", description: "Marca." }
+      - { name: hidden_gem, type: "boolean", description: "Joia escondida: converte bem, aparece pouco." }
+      - { name: enough_data, type: "boolean", description: "Visualizações suficientes (min_views) para confiar no número." }
+    measures:
+      - { name: price, type: "numeric(10,2)", aggregation: none, description: "Preço atual.", not_additive_because: "preço unitário" }
+      - { name: margin_pct, type: "numeric", aggregation: none, description: "Margem atual em % do preço (nula se o custo é desconhecido).", not_additive_because: "razão calculada por linha: some os numeradores e denominadores e divida de novo" }
+      - { name: in_stock_sizes, type: "integer", aggregation: none, description: "Numerações com estoque.", not_additive_because: "estado atual do produto" }
+      - { name: total_sizes, type: "integer", aggregation: none, description: "Numerações cadastradas.", not_additive_because: "estado atual do produto" }
+      - { name: impressions, type: "integer", aggregation: sum, description: "Exibições em listas na janela." }
+      - { name: clicks, type: "integer", aggregation: sum, description: "Cliques na janela." }
+      - { name: ctr, type: "numeric", aggregation: none, description: "clicks ÷ impressions.", not_additive_because: "razão calculada por linha: some os numeradores e denominadores e divida de novo" }
+      - { name: views, type: "integer", aggregation: sum, description: "Aberturas da página do produto." }
+      - { name: unique_viewers, type: "integer", aggregation: none, description: "Visitantes distintos (soma por dia).", not_additive_because: "contagem de distintos: somar entre linhas conta a mesma pessoa mais de uma vez" }
+      - { name: adds, type: "integer", aggregation: sum, description: "Colocações na sacola." }
+      - { name: fav_adds, type: "integer", aggregation: sum, description: "Favoritos adicionados." }
+      - { name: orders, type: "integer", aggregation: sum, description: "Pedidos." }
+      - { name: conversion_rate, type: "numeric", aggregation: none, description: "orders ÷ views.", not_additive_because: "razão calculada por linha: some os numeradores e denominadores e divida de novo" }
+      - { name: demand_rank, type: "numeric", aggregation: none, description: "Rank da demanda na categoria (0 a 1).", not_additive_because: "rank percentual dentro da categoria (0 a 1)" }
+      - { name: interest_rank, type: "numeric", aggregation: none, description: "Rank do interesse (CTR e adição à sacola).", not_additive_because: "rank percentual (0 a 1)" }
+      - { name: conversion_rank, type: "numeric", aggregation: none, description: "Rank da conversão.", not_additive_because: "rank percentual (0 a 1)" }
+      - { name: margin_rank, type: "numeric", aggregation: none, description: "Rank da margem.", not_additive_because: "rank percentual (0 a 1)" }
+      - { name: exposure_rank, type: "numeric", aggregation: none, description: "Rank da exposição (impressions).", not_additive_because: "rank percentual (0 a 1)" }
+      - { name: availability, type: "numeric", aggregation: none, description: "in_stock_sizes ÷ total_sizes.", not_additive_because: "razão calculada por linha: some os numeradores e denominadores e divida de novo" }
+      - { name: score, type: "numeric", aggregation: none, description: "Índice de destaque de 0 a 100.", not_additive_because: "índice 0 a 100" }
+      - { name: window_days, type: "integer", aggregation: none, description: "Janela usada, em dias.", not_additive_because: "parâmetro da janela (igual em todas as linhas)" }
+    caveats:
+      - "Ranks são percentuais dentro da categoria (0 a 1). Peso de cada sinal em analytics.settings."
+      - "enough_data = false significa poucas visualizações: o número é frágil."
+      - "hidden_gem: converte no top 25% da categoria e aparece no 25% de baixo."
+    joins:
+      - { to: products, on: product_id, relationship: many_to_one }
+  - name: price_opportunity
+    view: bi.v1_price_opportunity
+    title: "Oportunidade de preço"
+    question: "Quais itens o cliente olha, mas não compra, e quanto de desconto cabe mantendo a margem mínima?"
+    grain: "1 linha por produto candidato (janela móvel)"
+    time_dimension: null
+    default_order: "views DESC"
+    dimensions:
+      - { name: product_id, type: "text", description: "Id do produto." }
+      - { name: product_name, type: "text", description: "Nome." }
+      - { name: category, type: "text", description: "Categoria." }
+      - { name: brand, type: "text", description: "Marca." }
+      - { name: cost_known, type: "boolean", description: "O custo do produto está cadastrado." }
+      - { name: on_sale, type: "boolean", description: "Já está em promoção (tem preço \"de\")." }
+    measures:
+      - { name: price, type: "numeric(10,2)", aggregation: none, description: "Preço atual.", not_additive_because: "preço unitário" }
+      - { name: margin_pct, type: "numeric", aggregation: none, description: "Margem atual em % do preço.", not_additive_because: "razão calculada por linha: some os numeradores e denominadores e divida de novo" }
+      - { name: views, type: "integer", aggregation: sum, description: "Visualizações na janela." }
+      - { name: unique_viewers, type: "integer", aggregation: none, description: "Visitantes distintos.", not_additive_because: "contagem de distintos: somar entre linhas conta a mesma pessoa mais de uma vez" }
+      - { name: adds, type: "integer", aggregation: sum, description: "Colocações na sacola." }
+      - { name: fav_adds, type: "integer", aggregation: sum, description: "Favoritos adicionados." }
+      - { name: repeat_viewers, type: "integer", aggregation: none, description: "Visitantes que abriram o produto 2 vezes ou mais.", not_additive_because: "contagem de distintos: somar entre linhas conta a mesma pessoa mais de uma vez" }
+      - { name: orders, type: "integer", aggregation: sum, description: "Pedidos." }
+      - { name: adds_not_bought, type: "integer", aggregation: sum, description: "adds − orders (aproximação de intenção sem compra)." }
+      - { name: conversion_rate, type: "numeric", aggregation: none, description: "orders ÷ views.", not_additive_because: "razão calculada por linha: some os numeradores e denominadores e divida de novo" }
+      - { name: conversion_rank, type: "numeric", aggregation: none, description: "Rank da conversão na categoria (0 a 1).", not_additive_because: "rank percentual dentro da categoria (0 a 1)" }
+      - { name: max_discount_pct, type: "numeric", aggregation: none, description: "Maior desconto que mantém a margem mínima (nulo sem custo).", not_additive_because: "desconto máximo por produto" }
+      - { name: stock_total, type: "integer", aggregation: sum, description: "Unidades em estoque." }
+      - { name: days_since_last_sale, type: "integer", aggregation: none, description: "Dias desde a última venda (nulo se nunca vendeu).", not_additive_because: "estado atual do produto" }
+      - { name: price_window_start, type: "numeric(10,2)", aggregation: none, description: "Preço no início da janela, do histórico diário (nulo se não há histórico).", not_additive_because: "preço unitário" }
+      - { name: price_change_pct, type: "numeric", aggregation: none, description: "Variação do preço na janela, em %.", not_additive_because: "variação por produto" }
+      - { name: min_margin_used, type: "numeric(4,2)", aggregation: none, description: "Margem mínima usada no cálculo.", not_additive_because: "parâmetro (igual em todas as linhas)" }
+    caveats:
+      - "É um sinal para investigar, não prova de que o preço é o motivo: frete, estoque, foto e tamanho também pesam."
+      - "max_discount_pct é nulo quando o custo do produto não está cadastrado."
+      - "Para saber o efeito de um desconto, compare antes e depois com bi.v1_price_history."
+    joins:
+      - { to: products, on: product_id, relationship: many_to_one }
+  - name: experience_issues
+    view: bi.v1_experience_issues
+    title: "Qualidade da experiência"
+    question: "Onde o cliente está tendo uma experiência ruim (erros, lentidão, cliques repetidos)?"
+    grain: "dia × página"
+    time_dimension: date_sp
+    default_order: "date_sp DESC, issues_per_1k_views DESC NULLS LAST"
+    dimensions:
+      - { name: date_sp, type: "date", description: "Dia (fuso de Brasília)." }
+      - { name: path, type: "text", description: "Caminho da página." }
+    measures:
+      - { name: page_views, type: "integer", aggregation: sum, description: "Páginas abertas." }
+      - { name: js_errors, type: "integer", aggregation: sum, description: "Erros de JavaScript." }
+      - { name: api_errors, type: "integer", aggregation: sum, description: "Chamadas à API que falharam (4xx exceto 401, 5xx ou rede)." }
+      - { name: rage_clicks, type: "integer", aggregation: sum, description: "Cliques repetidos (3+ em 1 s no mesmo ponto)." }
+      - { name: form_errors, type: "integer", aggregation: sum, description: "Campos recusados pela validação do navegador." }
+      - { name: not_found, type: "integer", aggregation: sum, description: "Páginas 404." }
+      - { name: image_errors, type: "integer", aggregation: sum, description: "Imagens que não carregaram." }
+      - { name: issues_per_1k_views, type: "numeric", aggregation: none, description: "Problemas por mil páginas abertas.", not_additive_because: "razão calculada por linha: some os numeradores e denominadores e divida de novo" }
+      - { name: lcp_p75_ms, type: "numeric", aggregation: none, description: "Maior elemento visível (LCP), percentil 75, em ms. Bom ≤ 2500.", not_additive_because: "percentil: não se soma nem se tira média sem peso" }
+      - { name: inp_p75_ms, type: "numeric", aggregation: none, description: "Resposta a interações (INP), percentil 75, em ms. Bom ≤ 200.", not_additive_because: "percentil" }
+      - { name: cls_p75, type: "numeric", aggregation: none, description: "Mudança de layout (CLS), percentil 75. Bom ≤ 0,1.", not_additive_because: "percentil" }
+      - { name: lcp_rating, type: "text", aggregation: none, description: "good, needs-improvement ou poor (pelo LCP).", not_additive_because: "classificação" }
+    caveats:
+      - "Velocidade só existe para páginas com medições; poucas medições deixam o percentil instável."
+      - "Metas: LCP ≤ 2500 ms, INP ≤ 200 ms, CLS ≤ 0,1."
+  - name: api_errors
+    view: bi.v1_api_errors
+    title: "Erros de API por rota"
+    question: "Quais chamadas à API estão falhando para o cliente?"
+    grain: "dia × rota × método × código × origem do registro"
+    time_dimension: date_sp
+    default_order: "date_sp DESC, occurrences DESC"
+    dimensions:
+      - { name: date_sp, type: "date", description: "Dia (fuso de Brasília)." }
+      - { name: endpoint, type: "text", description: "Rota da API sem ids." }
+      - { name: method, type: "text", description: "GET, POST…" }
+      - { name: error_code, type: "text", description: "Código HTTP ou \"network\"." }
+      - { name: from_server, type: "boolean", description: "Registrado pelo servidor (erro 5xx) e não pelo navegador." }
+    measures:
+      - { name: occurrences, type: "integer", aggregation: sum, description: "Ocorrências." }
+      - { name: visitors, type: "integer", aggregation: none, description: "Visitantes distintos (o servidor, sem cabeçalhos, conta como um só).", not_additive_because: "contagem de distintos: somar entre linhas conta a mesma pessoa mais de uma vez" }
+    caveats:
+      - "from_server = true são erros 5xx registrados pelo servidor, sem ligação com a visita."
+  - name: price_history
+    view: bi.v1_price_history
+    title: "Histórico de preço"
+    question: "Como o preço e o estoque de cada produto mudaram ao longo do tempo?"
+    grain: "dia × produto"
+    time_dimension: date_sp
+    default_order: "date_sp DESC"
+    dimensions:
+      - { name: date_sp, type: "date", description: "Dia do retrato (fuso de Brasília)." }
+      - { name: product_id, type: "text", description: "Id do produto." }
+      - { name: product_name, type: "text", description: "Nome." }
+    measures:
+      - { name: price, type: "numeric(10,2)", aggregation: none, description: "Preço em reais.", not_additive_because: "preço unitário" }
+      - { name: compare_at_price, type: "numeric(10,2)", aggregation: none, description: "Preço \"de\" em reais.", not_additive_because: "preço unitário" }
+      - { name: stock_total, type: "integer", aggregation: none, description: "Estoque somado.", not_additive_because: "retrato do dia" }
+    caveats:
+      - "O histórico começa quando a medição entra no ar."
+    joins:
+      - { to: products, on: product_id, relationship: many_to_one }
+  - name: sales
+    view: bi.v1_sales
+    title: "Vendas por item"
+    question: "O que foi vendido, por quanto e com que margem?"
+    grain: "pedido × item"
+    time_dimension: date_sp
+    default_order: "date_sp DESC"
+    dimensions:
+      - { name: date_sp, type: "date", description: "Dia do pedido (fuso de Brasília)." }
+      - { name: order_id, type: "text", description: "Id do pedido." }
+      - { name: status, type: "text", description: "PENDING, PAID, PICKING, SHIPPED, DELIVERED ou CANCELED." }
+      - { name: product_id, type: "text", description: "Id do produto." }
+      - { name: product_name, type: "text", description: "Nome." }
+      - { name: category, type: "text", description: "Categoria." }
+      - { name: brand, type: "text", description: "Marca." }
+      - { name: color, type: "text", description: "Cor." }
+      - { name: size, type: "text", description: "Numeração ou tamanho." }
+    measures:
+      - { name: quantity, type: "integer", aggregation: sum, description: "Quantidade." }
+      - { name: unit_price, type: "numeric(10,2)", aggregation: none, description: "Preço unitário na venda.", not_additive_because: "preço unitário" }
+      - { name: line_revenue, type: "numeric(12,2)", aggregation: sum, description: "Receita da linha em reais." }
+      - { name: margin_pct, type: "numeric", aggregation: none, description: "Margem da linha em % do preço (nula sem custo).", not_additive_because: "razão calculada por linha: some os numeradores e denominadores e divida de novo" }
+    caveats:
+      - "Inclui pedidos cancelados (status CANCELED): filtre conforme a análise."
+      - "Não traz dados do cliente."
+    joins:
+      - { to: products, on: product_id, relationship: many_to_one }
+derived_metrics:
+  - { name: ctr, model: product_engagement, formula: "sum(clicks) / sum(impressions)", description: "Cliques ÷ exibições dos cards." }
+  - { name: view_to_cart_rate, model: product_engagement, formula: "sum(adds) / sum(views)", description: "Colocações na sacola ÷ visualizações do produto." }
+  - { name: product_conversion_rate, model: product_engagement, formula: "sum(orders) / sum(views)", description: "Pedidos ÷ visualizações do produto." }
+  - { name: cart_remove_rate, model: cart_add_remove, formula: "sum(removes) / sum(adds)", description: "Retiradas da sacola ÷ colocações." }
+  - { name: step_conversion, model: funnel, formula: "sum(sessions at step N) / sum(sessions at step N-1)", description: "Passagem entre etapas do funil; some sessions por etapa e divida depois." }
+  - { name: bounce_rate, model: traffic_daily, formula: "sum(bounced_sessions) / sum(sessions)", description: "Visitas de uma página só, sem ver produto nem usar a sacola." }
+  - { name: issue_session_rate, model: traffic_daily, formula: "sum(sessions_with_issues) / sum(sessions)", description: "Visitas com erro, cliques repetidos, 404 ou imagem quebrada." }
+  - { name: abandoned_cart_value, model: abandoned_carts, formula: "sum(cart_value)", description: "Dinheiro em sacolas abandonadas." }
+  - { name: gross_margin_pct, model: sales, formula: "sum(line_revenue * margin_pct / 100) / sum(line_revenue)", description: "Margem ponderada pela receita (linhas sem custo ficam de fora)." }

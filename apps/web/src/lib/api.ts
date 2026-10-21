@@ -1,4 +1,5 @@
 import { getAdminToken } from "@/lib/admin-session";
+import { trackApiError, trackingHeaders } from "@/lib/track";
 import type { AdminStats, Address, Audience, Brand, Campaign, Capabilities, Category, CustomerStat, DashFilters, ErpIssue, ErpRefreshStatus, Facets, Inventory, Order, Overview, Paginated, Product, ProductClass, SavedCard, ShippingQuote, Showcase, PanelUser, SiteSettings, StockMovement, Story, User } from "@/types/product";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3333/api";
@@ -38,15 +39,25 @@ async function request<T>(path: string, init: RequestInit & { json?: unknown; ad
   if (typeof window !== "undefined") {
     const token = init.admin || path.startsWith("/admin") ? getAdminToken() : window.localStorage.getItem(TOKEN_KEY);
     if (token) headers.set("Authorization", `Bearer ${token}`);
+    // liga a chamada à visita (a compra gravada no servidor entra no funil da medição); vazio com a medição desligada
+    for (const [k, v] of Object.entries(trackingHeaders())) headers.set(k, v);
   }
 
-  const res = await fetch(`${API_URL}${path}`, {
-    ...init,
-    headers,
-    body: init.json !== undefined ? JSON.stringify(init.json) : init.body,
-    cache: "no-store",
-  });
+  const startedAt = typeof performance !== "undefined" ? performance.now() : 0;
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL}${path}`, {
+      ...init,
+      headers,
+      body: init.json !== undefined ? JSON.stringify(init.json) : init.body,
+      cache: "no-store",
+    });
+  } catch (error) {
+    if (typeof window !== "undefined") trackApiError(path, init.method ?? "GET", "network", performance.now() - startedAt);
+    throw error;
+  }
   if (!res.ok) {
+    if (typeof window !== "undefined") trackApiError(path, init.method ?? "GET", res.status, performance.now() - startedAt);
     const body = (await res.json().catch(() => null)) as ({ error?: string; code?: string } & Record<string, unknown>) | null;
     throw new ApiError(body?.error ?? `API ${res.status} em ${path}`, res.status, body?.code, body ?? undefined);
   }

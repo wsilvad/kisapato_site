@@ -1,0 +1,235 @@
+{
+  "uid": "ks-5-produtos",
+  "title": "Ki Sapato · 5 Produtos",
+  "description": "Cliques, favoritos e itens que merecem destaque.",
+  "tags": [
+    "ki-sapato",
+    "bi"
+  ],
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": true,
+  "timezone": "America/Sao_Paulo",
+  "time": {
+    "from": "now-30d",
+    "to": "now"
+  },
+  "refresh": "5m",
+  "templating": {
+    "list": [
+      {
+        "name": "DS_KI_SAPATO",
+        "label": "Fonte de dados",
+        "type": "datasource",
+        "query": "postgres",
+        "current": {
+          "text": "Ki Sapato (BI)",
+          "value": "ki-sapato-bi"
+        },
+        "hide": 0
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "table",
+      "title": "Mais clicados",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 12,
+        "h": 9
+      },
+      "datasource": {
+        "type": "postgres",
+        "uid": "${DS_KI_SAPATO}"
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {},
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "postgres",
+            "uid": "${DS_KI_SAPATO}"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "SELECT product_name AS \"Produto\", sum(clicks) AS \"Cliques\", sum(impressions) AS \"Exibições\", round(sum(clicks)::numeric / nullif(sum(impressions), 0), 3) AS \"CTR\" FROM bi.v1_product_engagement WHERE $__timeFilter(date_sp) GROUP BY 1 ORDER BY 2 DESC LIMIT 15"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "table",
+      "title": "Mais favoritados",
+      "gridPos": {
+        "x": 12,
+        "y": 0,
+        "w": 12,
+        "h": 9
+      },
+      "datasource": {
+        "type": "postgres",
+        "uid": "${DS_KI_SAPATO}"
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {},
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "postgres",
+            "uid": "${DS_KI_SAPATO}"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "SELECT product_name AS \"Produto\", sum(fav_adds) AS \"Favoritos\", sum(fav_removes) AS \"Removidos\", sum(fav_net) AS \"Saldo\" FROM bi.v1_product_engagement WHERE $__timeFilter(date_sp) GROUP BY 1 ORDER BY 2 DESC LIMIT 15"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "table",
+      "title": "Índice de destaque (top 15)",
+      "gridPos": {
+        "x": 0,
+        "y": 9,
+        "w": 12,
+        "h": 9
+      },
+      "datasource": {
+        "type": "postgres",
+        "uid": "${DS_KI_SAPATO}"
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {},
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "postgres",
+            "uid": "${DS_KI_SAPATO}"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "SELECT product_name AS \"Produto\", category AS \"Categoria\", score AS \"Índice\", views AS \"Vistas\", orders AS \"Pedidos\", enough_data AS \"Amostra ok\" FROM bi.v1_product_scorecard ORDER BY score DESC LIMIT 15"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "table",
+      "title": "Joias escondidas (convertem bem, aparecem pouco)",
+      "gridPos": {
+        "x": 12,
+        "y": 9,
+        "w": 12,
+        "h": 9
+      },
+      "datasource": {
+        "type": "postgres",
+        "uid": "${DS_KI_SAPATO}"
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {},
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "postgres",
+            "uid": "${DS_KI_SAPATO}"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "SELECT product_name AS \"Produto\", category AS \"Categoria\", views AS \"Vistas\", orders AS \"Pedidos\", conversion_rate AS \"Conversão\", impressions AS \"Exibições\" FROM bi.v1_product_scorecard WHERE hidden_gem ORDER BY conversion_rate DESC"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "table",
+      "title": "Mais vendidos",
+      "gridPos": {
+        "x": 0,
+        "y": 18,
+        "w": 12,
+        "h": 9
+      },
+      "datasource": {
+        "type": "postgres",
+        "uid": "${DS_KI_SAPATO}"
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {},
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "postgres",
+            "uid": "${DS_KI_SAPATO}"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "SELECT product_name AS \"Produto\", sum(units) AS \"Unidades\", sum(revenue) AS \"Receita (R$)\" FROM bi.v1_product_engagement WHERE $__timeFilter(date_sp) GROUP BY 1 HAVING sum(units) > 0 ORDER BY 3 DESC LIMIT 15"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "Receita por dia",
+      "gridPos": {
+        "x": 12,
+        "y": 18,
+        "w": 12,
+        "h": 9
+      },
+      "datasource": {
+        "type": "postgres",
+        "uid": "${DS_KI_SAPATO}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyBRL"
+        },
+        "overrides": []
+      },
+      "options": {},
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "postgres",
+            "uid": "${DS_KI_SAPATO}"
+          },
+          "format": "time_series",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "SELECT date_sp::timestamp AS time, sum(line_revenue) AS \"Receita\" FROM bi.v1_sales WHERE $__timeFilter(date_sp) AND status <> 'CANCELED' GROUP BY 1 ORDER BY 1"
+        }
+      ]
+    }
+  ]
+}

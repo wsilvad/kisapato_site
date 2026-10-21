@@ -1,0 +1,167 @@
+{
+  "uid": "ks-2-funil",
+  "title": "Ki Sapato · 2 Funil de compra",
+  "description": "Onde o cliente desiste antes de comprar.",
+  "tags": [
+    "ki-sapato",
+    "bi"
+  ],
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": true,
+  "timezone": "America/Sao_Paulo",
+  "time": {
+    "from": "now-30d",
+    "to": "now"
+  },
+  "refresh": "5m",
+  "templating": {
+    "list": [
+      {
+        "name": "DS_KI_SAPATO",
+        "label": "Fonte de dados",
+        "type": "datasource",
+        "query": "postgres",
+        "current": {
+          "text": "Ki Sapato (BI)",
+          "value": "ki-sapato-bi"
+        },
+        "hide": 0
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "barchart",
+      "title": "Funil do período",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 12,
+        "h": 9
+      },
+      "datasource": {
+        "type": "postgres",
+        "uid": "${DS_KI_SAPATO}"
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {},
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "postgres",
+            "uid": "${DS_KI_SAPATO}"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "SELECT step AS \"Etapa\", sum(sessions) AS \"Visitas\" FROM bi.v1_funnel WHERE $__timeFilter(date_sp) GROUP BY step_order, step ORDER BY step_order"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "table",
+      "title": "Passagem entre etapas",
+      "gridPos": {
+        "x": 12,
+        "y": 0,
+        "w": 12,
+        "h": 9
+      },
+      "datasource": {
+        "type": "postgres",
+        "uid": "${DS_KI_SAPATO}"
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {},
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "postgres",
+            "uid": "${DS_KI_SAPATO}"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "SELECT step AS \"Etapa\", sum(sessions) AS \"Visitas\", round(100.0 * sum(sessions) / nullif(sum(sum(sessions)) FILTER (WHERE step_order = 1) OVER (), 0), 1) AS \"% das visitas\" FROM bi.v1_funnel WHERE $__timeFilter(date_sp) GROUP BY step_order, step ORDER BY step_order"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "table",
+      "title": "Funil por aparelho",
+      "gridPos": {
+        "x": 0,
+        "y": 9,
+        "w": 12,
+        "h": 9
+      },
+      "datasource": {
+        "type": "postgres",
+        "uid": "${DS_KI_SAPATO}"
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {},
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "postgres",
+            "uid": "${DS_KI_SAPATO}"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "SELECT device_type AS \"Aparelho\", step AS \"Etapa\", sum(sessions) AS \"Visitas\" FROM bi.v1_funnel WHERE $__timeFilter(date_sp) GROUP BY device_type, step_order, step ORDER BY device_type, step_order"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "Compras por dia",
+      "gridPos": {
+        "x": 12,
+        "y": 9,
+        "w": 12,
+        "h": 9
+      },
+      "datasource": {
+        "type": "postgres",
+        "uid": "${DS_KI_SAPATO}"
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {},
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "postgres",
+            "uid": "${DS_KI_SAPATO}"
+          },
+          "format": "time_series",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "SELECT date_sp::timestamp AS time, sum(sessions) FILTER (WHERE step_order = 3) AS \"Adicionaram à sacola\", sum(sessions) FILTER (WHERE step_order = 6) AS \"Compraram\" FROM bi.v1_funnel WHERE $__timeFilter(date_sp) GROUP BY 1 ORDER BY 1"
+        }
+      ]
+    }
+  ]
+}

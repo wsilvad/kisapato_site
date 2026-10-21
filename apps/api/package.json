@@ -18,7 +18,11 @@
     "mail:test": "tsx scripts/mail-test.ts",
     "erp:import": "tsx scripts/erp-import.ts",
     "photos:brand": "tsx scripts/brand-photos.ts",
-    "site:menus": "tsx scripts/site-menus.ts"
+    "site:menus": "tsx scripts/site-menus.ts",
+    "analytics:docs": "tsx scripts/analytics-docs.ts",
+    "analytics:demo": "tsx scripts/analytics-demo-data.ts",
+    "analytics:mcp": "tsx scripts/mcp-metrics.ts",
+    "analytics:report": "tsx scripts/analytics-weekly-report.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.10.0",
@@ -38,6 +42,7 @@
     "zod": "^4.6.5"
   },
   "devDependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.1",
     "@types/bcryptjs": "^2.4.6",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",

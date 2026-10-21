@@ -4,6 +4,7 @@ import { AppError } from "../../lib/errors.js";
 import { prisma } from "../../lib/prisma.js";
 import { requireAuth } from "../../middlewares/auth.js";
 import { visibleProductWhere } from "../products/products.service.js";
+import { recordServerEvent } from "../analytics/server-events.js";
 import { recordMovement } from "../stock/stock.service.js";
 
 export const ordersRouter = Router();
@@ -99,6 +100,14 @@ ordersRouter.post("/", async (req, res) => {
     return created;
   });
 
+  // medição: a compra é gravada no servidor (o navegador pode estar bloqueando eventos), ligada à visita pelos cabeçalhos do site
+  recordServerEvent(req, {
+    event: "purchase",
+    path: "/checkout",
+    cart_value: Number(order.total),
+    items_count: order.items.length,
+    props: { order_id: order.id, status: order.status, items: order.items.map((i) => ({ variant_id: i.variantId, price: Number(i.unitPrice), quantity: i.quantity })) },
+  });
   res.status(201).json(order);
 });
 

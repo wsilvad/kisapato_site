@@ -53,7 +53,7 @@ export function HeroCarousel({ campaigns }: { campaigns: Campaign[] }) {
       </div>
       {button && (
         <div className="hero-actions">
-          <Link key={campaign?.id} href={button.url} className="btn btn-solid hero-button">
+          <Link key={campaign?.id} href={button.url} className="btn btn-solid hero-button" data-track-id={campaign?.id}>
             {button.label}
           </Link>
         </div>

@@ -10,6 +10,7 @@ import { cpfField, fullName, maskPhone, normalizePhone, phoneField, strongPasswo
 import { env } from "../../config/env.js";
 import { encryptionAvailable } from "../../lib/crypto.js";
 import { requireAuth } from "../../middlewares/auth.js";
+import { linkIdentity } from "../analytics/server-events.js";
 import { authFlood, loginAttempts, recoveryRequests, registrations, registrationsPerEmail, resendRequests, resetAttempts, twoFactorAttempts, verifyAttempts } from "../../middlewares/rate-limit.js";
 import { CODE_MINUTES, consumeAll, consumeCode, issueCode } from "./codes.js";
 import { sessionFor, toPublicUser, loadUser } from "./session.js";
@@ -165,6 +166,7 @@ authRouter.post("/login", loginAttempts, async (req, res) => {
     res.json({ twoFactorRequired: true, challenge: signTwoFactorChallenge(found.id) });
     return;
   }
+  void linkIdentity(req, found.id); // só grava se ANALYTICS_IDENTIFY estiver ligado
   res.json(await sessionFor(found.id));
 });
 

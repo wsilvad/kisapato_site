@@ -50,6 +50,16 @@ const envSchema = z.object({
   TWILIO_FROM: z.string().optional(),
   /** Gateway que tokeniza cartões (ex.: "mercadopago"). Sem ele, salvar cartão fica indisponível. */
   CARD_PROVIDER: z.string().optional(),
+  /** Medição do site (eventos de navegação, sacola, erros…). "false" desliga a gravação e a manutenção (ver docs/analytics). */
+  ANALYTICS_ENABLED: z.enum(["true", "false"]).default("true").transform((v) => v === "true"),
+  /** Liga o visitante anônimo ao cliente logado (tabela analytics.identities). Desligado por padrão: decisão de privacidade. */
+  ANALYTICS_IDENTIFY: z.enum(["true", "false"]).default("false").transform((v) => v === "true"),
+  /** Meses de eventos brutos guardados; partições mais antigas são removidas na manutenção diária. */
+  ANALYTICS_RETENTION_MONTHS: z.coerce.number().int().min(3).max(60).default(13),
+  /** Chave da API de métricas (GET /api/metrics/v1/*). Sem ela, a API de métricas fica desligada. Gere uma aleatória longa e guarde só no servidor. */
+  METRICS_API_KEY: z.string().min(24, "METRICS_API_KEY precisa ter ao menos 24 caracteres").optional(),
+  /** Conexão SOMENTE LEITURA (usuário bi_reader) usada pela API de métricas e pelo servidor MCP. Sem ela, usam a conexão principal limitada ao esquema bi. */
+  METRICS_DATABASE_URL: z.string().optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);

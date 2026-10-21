@@ -1,5 +1,6 @@
 "use client";
 
+import { track } from "@/lib/track";
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { formatPrice } from "@/lib/format";
@@ -38,7 +39,10 @@ export function ShippingCalc({ subtotal }: { subtotal: number }) {
     setLoading(true);
     setError("");
     try {
-      setQuote(await api.shippingQuote(cep, subtotal));
+      const q = await api.shippingQuote(cep, subtotal);
+      setQuote(q);
+      const cheapest = q.options.length > 0 ? q.options.reduce((a, b) => (b.price < a.price ? b : a)) : null;
+      track("shipping_quote", { price: cheapest?.price ?? null, props: { cep3: cep.replace(/\D/g, "").slice(0, 3), days: cheapest?.maxDays ?? null, options: q.options.length } });
       try {
         window.localStorage.setItem(CEP_KEY, cep);
       } catch {

@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { track } from "@/lib/track";
 import { AddressForm } from "@/components/account/AddressForm";
 import { ApiError, api, type AddressInput } from "@/lib/api";
 import { useCart } from "@/lib/cart";
@@ -26,6 +27,18 @@ export default function CheckoutPage() {
   // CPF da nota fiscal (contas antigas ainda não têm)
   const [cpf, setCpf] = useState("");
   const [cpfBusy, setCpfBusy] = useState(false);
+
+  // medição: entrou no checkout com itens (uma vez por abertura)
+  const began = useRef(false);
+  useEffect(() => {
+    if (began.current || lines.length === 0) return;
+    began.current = true;
+    track("begin_checkout", {
+      cart_value: total,
+      items_count: lines.length,
+      props: { items: lines.map((l) => ({ item_id: l.productId ?? l.slug, variant_id: l.variantId, item_name: l.name, price: Number(l.price), quantity: l.quantity })) },
+    });
+  }, [lines, total]);
 
   useEffect(() => {
     if (!user) return;

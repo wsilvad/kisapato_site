@@ -1,0 +1,337 @@
+{
+  "uid": "ks-3-qualidade",
+  "title": "Ki Sapato · 3 Qualidade da experiência",
+  "description": "Erros, lentidão e cliques repetidos.",
+  "tags": [
+    "ki-sapato",
+    "bi"
+  ],
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": true,
+  "timezone": "America/Sao_Paulo",
+  "time": {
+    "from": "now-30d",
+    "to": "now"
+  },
+  "refresh": "5m",
+  "templating": {
+    "list": [
+      {
+        "name": "DS_KI_SAPATO",
+        "label": "Fonte de dados",
+        "type": "datasource",
+        "query": "postgres",
+        "current": {
+          "text": "Ki Sapato (BI)",
+          "value": "ki-sapato-bi"
+        },
+        "hide": 0
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Erros de JavaScript",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      "datasource": {
+        "type": "postgres",
+        "uid": "${DS_KI_SAPATO}"
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "values": false
+        },
+        "colorMode": "none",
+        "graphMode": "none"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "postgres",
+            "uid": "${DS_KI_SAPATO}"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "SELECT sum(js_errors) AS \"Erros JS\" FROM bi.v1_experience_issues WHERE $__timeFilter(date_sp)"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Erros de API",
+      "gridPos": {
+        "x": 6,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      "datasource": {
+        "type": "postgres",
+        "uid": "${DS_KI_SAPATO}"
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "values": false
+        },
+        "colorMode": "none",
+        "graphMode": "none"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "postgres",
+            "uid": "${DS_KI_SAPATO}"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "SELECT sum(api_errors) AS \"Erros de API\" FROM bi.v1_experience_issues WHERE $__timeFilter(date_sp)"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Cliques repetidos",
+      "gridPos": {
+        "x": 12,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      "datasource": {
+        "type": "postgres",
+        "uid": "${DS_KI_SAPATO}"
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "values": false
+        },
+        "colorMode": "none",
+        "graphMode": "none"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "postgres",
+            "uid": "${DS_KI_SAPATO}"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "SELECT sum(rage_clicks) AS \"Cliques repetidos\" FROM bi.v1_experience_issues WHERE $__timeFilter(date_sp)"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Visitas com problema",
+      "gridPos": {
+        "x": 18,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      "datasource": {
+        "type": "postgres",
+        "uid": "${DS_KI_SAPATO}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "values": false
+        },
+        "colorMode": "none",
+        "graphMode": "none"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "postgres",
+            "uid": "${DS_KI_SAPATO}"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "SELECT sum(sessions_with_issues)::numeric / nullif(sum(sessions), 0) AS \"Com problema\" FROM bi.v1_traffic_daily WHERE $__timeFilter(date_sp)"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Problemas por dia",
+      "gridPos": {
+        "x": 0,
+        "y": 4,
+        "w": 24,
+        "h": 8
+      },
+      "datasource": {
+        "type": "postgres",
+        "uid": "${DS_KI_SAPATO}"
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {},
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "postgres",
+            "uid": "${DS_KI_SAPATO}"
+          },
+          "format": "time_series",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "SELECT date_sp::timestamp AS time, sum(js_errors) AS \"JS\", sum(api_errors) AS \"API\", sum(rage_clicks) AS \"Cliques repetidos\", sum(form_errors) AS \"Formulário\", sum(not_found) AS \"404\" FROM bi.v1_experience_issues WHERE $__timeFilter(date_sp) GROUP BY 1 ORDER BY 1"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "type": "table",
+      "title": "Páginas com mais problemas",
+      "gridPos": {
+        "x": 0,
+        "y": 12,
+        "w": 12,
+        "h": 9
+      },
+      "datasource": {
+        "type": "postgres",
+        "uid": "${DS_KI_SAPATO}"
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {},
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "postgres",
+            "uid": "${DS_KI_SAPATO}"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "SELECT path AS \"Página\", sum(page_views) AS \"Vistas\", sum(js_errors + api_errors + rage_clicks + form_errors + not_found + image_errors) AS \"Problemas\", round(1000.0 * sum(js_errors + api_errors + rage_clicks + form_errors + not_found + image_errors) / nullif(sum(page_views), 0), 1) AS \"Por mil vistas\" FROM bi.v1_experience_issues WHERE $__timeFilter(date_sp) GROUP BY 1 ORDER BY 3 DESC LIMIT 15"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "type": "table",
+      "title": "Velocidade (LCP p75, ms)",
+      "gridPos": {
+        "x": 12,
+        "y": 12,
+        "w": 12,
+        "h": 9
+      },
+      "datasource": {
+        "type": "postgres",
+        "uid": "${DS_KI_SAPATO}"
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {},
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "postgres",
+            "uid": "${DS_KI_SAPATO}"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "SELECT path AS \"Página\", max(lcp_p75_ms) AS \"LCP p75 (ms)\", max(lcp_rating) AS \"Nota\", max(inp_p75_ms) AS \"INP p75 (ms)\" FROM bi.v1_experience_issues WHERE $__timeFilter(date_sp) AND lcp_p75_ms IS NOT NULL GROUP BY 1 ORDER BY 2 DESC LIMIT 15"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "type": "table",
+      "title": "Erros de API por rota",
+      "gridPos": {
+        "x": 0,
+        "y": 21,
+        "w": 24,
+        "h": 8
+      },
+      "datasource": {
+        "type": "postgres",
+        "uid": "${DS_KI_SAPATO}"
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {},
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "postgres",
+            "uid": "${DS_KI_SAPATO}"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "SELECT endpoint AS \"Rota\", method AS \"Método\", error_code AS \"Código\", sum(occurrences) AS \"Vezes\" FROM bi.v1_api_errors WHERE $__timeFilter(date_sp) GROUP BY 1, 2, 3 ORDER BY 4 DESC LIMIT 20"
+        }
+      ]
+    }
+  ]
+}

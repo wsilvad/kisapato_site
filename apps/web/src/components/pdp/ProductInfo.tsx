@@ -6,6 +6,7 @@ import { ShippingCalc } from "@/components/pdp/ShippingCalc";
 import { thumbUrl } from "@/lib/api";
 import { useCart } from "@/lib/cart";
 import { formatPrice, installmentText, maxInstallments } from "@/lib/format";
+import { track } from "@/lib/track";
 import type { Product, ProductColor } from "@/types/product";
 
 interface Props {
@@ -43,14 +44,14 @@ export function ProductInfo({ product, colors, color, onColorChange, cartImage, 
 
   function handleAdd() {
     if (!selected) return setHint(true);
-    add({ variantId: selected.id, slug: product.slug, name: product.name, image: cartImage ?? product.images[0], size: selected.size, sizeLabel: selected.sizeLabel, color: selected.color, price: priceText, stock: selected.stock });
+    add({ variantId: selected.id, productId: product.id, slug: product.slug, name: product.name, image: cartImage ?? product.images[0], size: selected.size, sizeLabel: selected.sizeLabel, color: selected.color, price: priceText, stock: selected.stock });
   }
 
   return (
     <div className="pdp-info">
       <div className="pdp-title-row">
         <h1 className="pdp-title">{product.name}</h1>
-        <FavoriteButton slug={product.slug} name={product.name} />
+        <FavoriteButton slug={product.slug} name={product.name} productId={product.id} price={price} />
       </div>
       {product.reference && <p className="pdp-codes">Ref. {product.reference}</p>}
 
@@ -83,7 +84,7 @@ export function ProductInfo({ product, colors, color, onColorChange, cartImage, 
                 {colors.map((c) => {
                   const soldOut = !variants.some((v) => v.color === c.name && v.stock > 0);
                   return (
-                  <button key={c.name} type="button" className={[c.name === color && "is-on", soldOut && "is-out"].filter(Boolean).join(" ") || undefined} aria-pressed={c.name === color} aria-label={soldOut ? `Cor ${c.name} (esgotada)` : `Cor ${c.name}`} onClick={() => (onColorChange(c.name), setVariantId(""), setHint(false))}>
+                  <button key={c.name} type="button" className={[c.name === color && "is-on", soldOut && "is-out"].filter(Boolean).join(" ") || undefined} aria-pressed={c.name === color} aria-label={soldOut ? `Cor ${c.name} (esgotada)` : `Cor ${c.name}`} onClick={() => (onColorChange(c.name), setVariantId(""), setHint(false), track("color_select", { product_id: product.id, props: { color: c.name } }))}>
                     <span className="pdp-swatch">
                       {c.images[0] ? (
                         // eslint-disable-next-line @next/next/no-img-element
@@ -113,7 +114,7 @@ export function ProductInfo({ product, colors, color, onColorChange, cartImage, 
                   disabled={v.stock === 0}
                   className={v.id === variantId ? "is-on" : undefined}
                   title={v.stock === 0 ? "Indisponível" : undefined}
-                  onClick={() => (setVariantId(v.id), setHint(false))}
+                  onClick={() => (setVariantId(v.id), setHint(false), track("size_select", { product_id: product.id, variant_id: v.id, props: { size: String(v.sizeLabel ?? v.size) } }))}
                 >
                   {v.sizeLabel ?? v.size}
                 </button>
@@ -126,7 +127,7 @@ export function ProductInfo({ product, colors, color, onColorChange, cartImage, 
 
           <div className="pdp-actions">
             <button type="button" className="btn btn-solid" onClick={handleAdd}>Adicionar à sacola</button>
-            <FavoriteButton slug={product.slug} name={product.name} variant="block" />
+            <FavoriteButton slug={product.slug} name={product.name} variant="block" productId={product.id} price={price} />
           </div>
         </>
       )}

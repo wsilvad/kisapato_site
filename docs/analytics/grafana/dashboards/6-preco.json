@@ -1,0 +1,115 @@
+{
+  "uid": "ks-6-preco",
+  "title": "Ki Sapato · 6 Oportunidades de preço",
+  "description": "Muito visto, pouco vendido, e quanto de desconto cabe na margem.",
+  "tags": [
+    "ki-sapato",
+    "bi"
+  ],
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": true,
+  "timezone": "America/Sao_Paulo",
+  "time": {
+    "from": "now-30d",
+    "to": "now"
+  },
+  "refresh": "5m",
+  "templating": {
+    "list": [
+      {
+        "name": "DS_KI_SAPATO",
+        "label": "Fonte de dados",
+        "type": "datasource",
+        "query": "postgres",
+        "current": {
+          "text": "Ki Sapato (BI)",
+          "value": "ki-sapato-bi"
+        },
+        "hide": 0
+      },
+      {
+        "name": "produto",
+        "label": "Produto",
+        "type": "query",
+        "datasource": {
+          "type": "postgres",
+          "uid": "${DS_KI_SAPATO}"
+        },
+        "query": "SELECT product_name FROM bi.v1_products WHERE active ORDER BY 1",
+        "refresh": 1,
+        "includeAll": false
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "table",
+      "title": "Oportunidade de preço",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 10
+      },
+      "datasource": {
+        "type": "postgres",
+        "uid": "${DS_KI_SAPATO}"
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {},
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "postgres",
+            "uid": "${DS_KI_SAPATO}"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "SELECT product_name AS \"Produto\", category AS \"Categoria\", price AS \"Preço\", views AS \"Vistas\", adds AS \"Sacola\", fav_adds AS \"Favoritos\", repeat_viewers AS \"Voltaram\", orders AS \"Pedidos\", max_discount_pct AS \"Desconto máx. (%)\", stock_total AS \"Estoque\", days_since_last_sale AS \"Dias sem vender\", on_sale AS \"Em promoção\" FROM bi.v1_price_opportunity ORDER BY views DESC"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "Histórico de preço de um produto",
+      "gridPos": {
+        "x": 0,
+        "y": 10,
+        "w": 24,
+        "h": 9
+      },
+      "datasource": {
+        "type": "postgres",
+        "uid": "${DS_KI_SAPATO}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyBRL"
+        },
+        "overrides": []
+      },
+      "options": {},
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "postgres",
+            "uid": "${DS_KI_SAPATO}"
+          },
+          "format": "time_series",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "SELECT date_sp::timestamp AS time, price AS \"Preço\", compare_at_price AS \"Preço de\" FROM bi.v1_price_history WHERE $__timeFilter(date_sp) AND product_name = '${produto}' ORDER BY 1"
+        }
+      ]
+    }
+  ]
+}

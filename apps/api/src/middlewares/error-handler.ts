@@ -2,6 +2,7 @@ import type { ErrorRequestHandler, RequestHandler } from "express";
 import { z } from "zod";
 import { env } from "../config/env.js";
 import { AppError } from "../lib/errors.js";
+import { recordServerEvent } from "../modules/analytics/server-events.js";
 
 /** Erros previsíveis do Prisma viram respostas claras em vez de 500. */
 function knownPrismaError(err: unknown): { status: number; message: string } | null {
@@ -20,7 +21,13 @@ export const notFoundHandler: RequestHandler = (_req, res) => {
   res.status(404).json({ error: "Rota não encontrada" });
 };
 
-export const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
+/** Erros do servidor (5xx) entram na medição, para o painel de qualidade mostrar onde o cliente está batendo em erro. */
+function trackServerError(req: Parameters<ErrorRequestHandler>[1], status: number) {
+  if (status < 500 || req.originalUrl.startsWith("/api/events")) return;
+  recordServerEvent(req, { event: "api_error", path: null, error_code: String(status), props: { endpoint: req.originalUrl.split("?")[0]?.replace("/api", "") ?? "", method: req.method } });
+}
+
+export const errorHandler: ErrorRequestHandler = (err, req, res, _next) => {
   if (err instanceof z.ZodError) {
     res.status(400).json({ error: "Dados inválidos", details: z.flattenError(err) });
     return;
@@ -34,6 +41,7 @@ export const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
   }
 
   if (err instanceof AppError) {
+    trackServerError(req, err.statusCode);
     res.status(err.statusCode).json({ error: err.message, ...(err.code && { code: err.code }) });
     return;
   }
@@ -45,6 +53,7 @@ export const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
   }
 
   console.error(err);
+  trackServerError(req, 500);
   res.status(500).json({
     error: "Erro interno do servidor",
     ...(env.NODE_ENV !== "production" && { message: String(err?.message ?? err) }),

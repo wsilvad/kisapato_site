@@ -1,0 +1,89 @@
+// Medidas DAX de partida para o Power BI (importe as views bi.v1_* como tabelas com o mesmo nome).
+// Somas simples vêm das colunas somáveis; razões são calculadas sobre as somas, nunca somadas.
+
+// Produtos (dimensão) (v1_products)
+products_stock_total = SUM(v1_products[stock_total])
+
+// Tráfego por dia (v1_traffic_daily)
+traffic_daily_sessions = SUM(v1_traffic_daily[sessions])
+traffic_daily_page_views = SUM(v1_traffic_daily[page_views])
+traffic_daily_sessions_with_product_view = SUM(v1_traffic_daily[sessions_with_product_view])
+traffic_daily_sessions_with_issues = SUM(v1_traffic_daily[sessions_with_issues])
+traffic_daily_bounced_sessions = SUM(v1_traffic_daily[bounced_sessions])
+
+// Páginas mais acessadas (v1_page_ranking)
+page_ranking_page_views = SUM(v1_page_ranking[page_views])
+
+// Termos buscados (v1_search_terms)
+search_terms_searches = SUM(v1_search_terms[searches])
+search_terms_zero_result_searches = SUM(v1_search_terms[zero_result_searches])
+
+// Funil de compra (v1_funnel)
+funnel_sessions = SUM(v1_funnel[sessions])
+funnel_sessions_previous_step = SUM(v1_funnel[sessions_previous_step])
+
+// Carrinhos abandonados (v1_abandoned_carts)
+abandoned_carts_cart_value = SUM(v1_abandoned_carts[cart_value])
+abandoned_carts_items_count = SUM(v1_abandoned_carts[items_count])
+
+// Itens das sacolas (v1_cart_items)
+cart_items_quantity = SUM(v1_cart_items[quantity])
+cart_items_line_value = SUM(v1_cart_items[line_value])
+
+// Colocado e retirado da sacola (v1_cart_add_remove)
+cart_add_remove_adds = SUM(v1_cart_add_remove[adds])
+cart_add_remove_removes = SUM(v1_cart_add_remove[removes])
+
+// Engajamento por produto (v1_product_engagement)
+product_engagement_impressions = SUM(v1_product_engagement[impressions])
+product_engagement_clicks = SUM(v1_product_engagement[clicks])
+product_engagement_views = SUM(v1_product_engagement[views])
+product_engagement_adds = SUM(v1_product_engagement[adds])
+product_engagement_fav_adds = SUM(v1_product_engagement[fav_adds])
+product_engagement_fav_removes = SUM(v1_product_engagement[fav_removes])
+product_engagement_fav_net = SUM(v1_product_engagement[fav_net])
+product_engagement_orders = SUM(v1_product_engagement[orders])
+product_engagement_units = SUM(v1_product_engagement[units])
+product_engagement_revenue = SUM(v1_product_engagement[revenue])
+
+// Índice de destaque (v1_product_scorecard)
+product_scorecard_impressions = SUM(v1_product_scorecard[impressions])
+product_scorecard_clicks = SUM(v1_product_scorecard[clicks])
+product_scorecard_views = SUM(v1_product_scorecard[views])
+product_scorecard_adds = SUM(v1_product_scorecard[adds])
+product_scorecard_fav_adds = SUM(v1_product_scorecard[fav_adds])
+product_scorecard_orders = SUM(v1_product_scorecard[orders])
+
+// Oportunidade de preço (v1_price_opportunity)
+price_opportunity_views = SUM(v1_price_opportunity[views])
+price_opportunity_adds = SUM(v1_price_opportunity[adds])
+price_opportunity_fav_adds = SUM(v1_price_opportunity[fav_adds])
+price_opportunity_orders = SUM(v1_price_opportunity[orders])
+price_opportunity_adds_not_bought = SUM(v1_price_opportunity[adds_not_bought])
+price_opportunity_stock_total = SUM(v1_price_opportunity[stock_total])
+
+// Qualidade da experiência (v1_experience_issues)
+experience_issues_page_views = SUM(v1_experience_issues[page_views])
+experience_issues_js_errors = SUM(v1_experience_issues[js_errors])
+experience_issues_api_errors = SUM(v1_experience_issues[api_errors])
+experience_issues_rage_clicks = SUM(v1_experience_issues[rage_clicks])
+experience_issues_form_errors = SUM(v1_experience_issues[form_errors])
+experience_issues_not_found = SUM(v1_experience_issues[not_found])
+experience_issues_image_errors = SUM(v1_experience_issues[image_errors])
+
+// Erros de API por rota (v1_api_errors)
+api_errors_occurrences = SUM(v1_api_errors[occurrences])
+
+// Vendas por item (v1_sales)
+sales_quantity = SUM(v1_sales[quantity])
+sales_line_revenue = SUM(v1_sales[line_revenue])
+
+// Razões (sobre as somas)
+CTR = DIVIDE(SUM(v1_product_engagement[clicks]), SUM(v1_product_engagement[impressions]))
+Taxa de conversão do produto = DIVIDE(SUM(v1_product_engagement[orders]), SUM(v1_product_engagement[views]))
+Taxa de colocação na sacola = DIVIDE(SUM(v1_product_engagement[adds]), SUM(v1_product_engagement[views]))
+Taxa de retirada da sacola = DIVIDE(SUM(v1_cart_add_remove[removes]), SUM(v1_cart_add_remove[adds]))
+Taxa de rejeição = DIVIDE(SUM(v1_traffic_daily[bounced_sessions]), SUM(v1_traffic_daily[sessions]))
+Visitas com problema % = DIVIDE(SUM(v1_traffic_daily[sessions_with_issues]), SUM(v1_traffic_daily[sessions]))
+Valor em carrinhos abandonados = SUM(v1_abandoned_carts[cart_value])
+Ticket médio = DIVIDE(SUMX(FILTER(v1_sales, v1_sales[status] <> "CANCELED"), v1_sales[line_revenue]), DISTINCTCOUNT(v1_sales[order_id]))

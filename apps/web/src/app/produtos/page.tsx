@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ProductCard } from "@/components/ProductCard";
 import { ProductFilters, type FilterState } from "@/components/ProductFilters";
+import { TrackSearch } from "@/components/TrackSearch";
 import { api } from "@/lib/api";
 import { audienceHref, segmentTitle } from "@/lib/segment";
 import type { Facets, Paginated, Product } from "@/types/product";
@@ -91,6 +92,7 @@ export default async function ProdutosPage({ searchParams }: { searchParams: Pro
         <p className="search-similar">Não encontramos exatamente “{params.busca}”. Mostrando os produtos mais parecidos.</p>
       )}
 
+      {params.busca && result && <TrackSearch term={params.busca} results={result.total} filters={Object.entries(state).filter(([, v]) => (Array.isArray(v) ? v.length > 0 : v !== undefined)).map(([k]) => k).join(",")} />}
       <ProductFilters facets={facets} state={state} fixed={fixed} ordem={ordem} total={result?.total ?? 0} />
 
       {!result ? (

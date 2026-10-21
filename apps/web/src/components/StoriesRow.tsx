@@ -73,7 +73,7 @@ export function StoriesRow({ stories }: { stories: Story[] }) {
           );
           return (
             <li key={story.id}>
-              <button type="button" className="story-card" aria-label={`Abrir ${story.title ?? "destaque"}`} onClick={() => setOpen(i)}>{card}</button>
+              <button type="button" className="story-card" data-track-id={story.id} aria-label={`Abrir ${story.title ?? "destaque"}`} onClick={() => setOpen(i)}>{card}</button>
             </li>
           );
         })}

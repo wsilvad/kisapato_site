@@ -1,6 +1,7 @@
 "use client";
 
 import { useFavorites } from "@/lib/favorites";
+import { track } from "@/lib/track";
 
 const Heart = ({ filled }: { filled: boolean }) => (
   <svg width="22" height="22" viewBox="0 0 24 24" fill={filled ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" aria-hidden="true">
@@ -9,12 +10,15 @@ const Heart = ({ filled }: { filled: boolean }) => (
 );
 
 /** Coração de favoritar. `variant="icon"` é o botão redondo sobre a foto do cartão; `"block"` é o botão da página do produto. */
-export function FavoriteButton({ slug, name, variant = "icon" }: { slug: string; name: string; variant?: "icon" | "block" }) {
+export function FavoriteButton({ slug, name, variant = "icon", productId, price }: { slug: string; name: string; variant?: "icon" | "block"; productId?: string; price?: number }) {
   const { has, toggle } = useFavorites();
   const on = has(slug);
   const label = on ? `Remover ${name} dos favoritos` : `Adicionar ${name} aos favoritos`;
   return (
-    <button type="button" className={`fav-btn fav-${variant}${on ? " is-on" : ""}`} aria-pressed={on} aria-label={label} title={on ? "Remover dos favoritos" : "Adicionar aos favoritos"} onClick={() => toggle(slug)}>
+    <button type="button" className={`fav-btn fav-${variant}${on ? " is-on" : ""}`} aria-pressed={on} aria-label={label} title={on ? "Remover dos favoritos" : "Adicionar aos favoritos"} onClick={() => {
+      toggle(slug);
+      if (productId) track(on ? "favorite_remove" : "favorite_add", { product_id: productId, price: price ?? null, props: { origin: variant === "block" ? "produto" : "lista" } });
+    }}>
       <Heart filled={on} />
       {variant === "block" && <span>{on ? "Nos favoritos" : "Favoritar"}</span>}
     </button>

@@ -23,6 +23,12 @@ const text = (value: unknown) => (typeof value === "string" ? value.trim().toLow
 
 const MIN = 60_000;
 
+/** Eventos de medição: um site em uso manda poucos lotes por minuto; 120 por IP é folga de sobra e barra enxurrada. */
+export const eventsFlood = limiter({ windowMs: MIN, limit: 120, message: "Muitos envios.", key: (req) => `events:${req.ip}` });
+
+/** API de métricas: 60 consultas por minuto por IP (uso de ferramentas e agentes; consultas grandes custam ao banco). */
+export const metricsFlood = limiter({ windowMs: MIN, limit: 60, message: "Muitas consultas de métricas. Aguarde um minuto.", key: (req) => `metrics:${req.ip}` });
+
 /** Barreira geral contra enxurrada em /auth (generosa; o controle fino é por conta). */
 export const authFlood = limiter({ windowMs: 15 * MIN, limit: 600, message: "Muitas requisições. Tente novamente em alguns minutos.", key: (req) => `flood:${req.ip}` });
 

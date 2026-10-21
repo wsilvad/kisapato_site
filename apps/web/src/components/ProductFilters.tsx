@@ -1,5 +1,6 @@
 "use client";
 
+import { track } from "@/lib/track";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { genderName } from "@/lib/segment";
@@ -67,7 +68,16 @@ const onlyKids = (s: FilterState) => s.faixa.length === 1 && s.faixa[0] === "inf
 export function ProductFilters({ facets, state, fixed, ordem, total }: Props) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
-  const go = (next: FilterState, nextOrdem = ordem) => router.push(buildUrl(fixed, next, nextOrdem));
+  const go = (next: FilterState, nextOrdem = ordem) => {
+    // medição: o que mudou (ordenação ou filtros) vira evento antes de navegar
+    if (nextOrdem !== ordem) track("sort_change", { props: { sort: nextOrdem } });
+    for (const key of Object.keys(next) as (keyof FilterState)[]) {
+      const a = next[key];
+      const b = state[key];
+      if (JSON.stringify(a) !== JSON.stringify(b)) track("filter_apply", { props: { filter: key, value: Array.isArray(a) ? a.join(",") : String(a ?? "") } });
+    }
+    router.push(buildUrl(fixed, next, nextOrdem));
+  };
   const active = countActive(state);
 
   const chips = useMemo(() => {
