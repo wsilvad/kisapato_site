@@ -16,7 +16,7 @@ Site (SDK track())  ──POST /api/events──►  API (buffer em lote)  ─�
 | Saber o que cada métrica responde e como somar | [metrics-catalog.md](metrics-catalog.md) *(gerado)* |
 | Ver colunas e tipos | [data-dictionary.md](data-dictionary.md) *(gerado)* |
 | Gerar modelos em outras ferramentas | [semantic-layer.yaml](semantic-layer.yaml), [lookml/](lookml), [powerbi/](powerbi) *(gerados)* |
-| Chamar a API | [openapi.json](openapi.json) *(gerado)* |
+| Chamar a API (eventos e métricas) | [api.md](api.md) · contrato: [openapi.json](openapi.json) *(gerado)* |
 | Montar dashboards | [dashboards-playbook.md](dashboards-playbook.md), [grafana/](grafana) |
 | Operar, configurar e resolver problemas | [OPERATIONS.md](OPERATIONS.md) |
 | Privacidade e LGPD | [privacy.md](privacy.md) |
