@@ -7,10 +7,31 @@ import multer from "multer";
 import { env } from "../../config/env.js";
 import { AppError } from "../../lib/errors.js";
 import { requireAdmin } from "../../middlewares/auth.js";
-import { saveImage } from "./image.js";
+import { imageLimitMessage, saveImage } from "./image.js";
+import { ImageQueue, MemoryBudget } from "./upload-queue.js";
 
 export const uploadDir = path.resolve(env.UPLOAD_DIR);
 mkdirSync(uploadDir, { recursive: true });
+
+/** Fila das fotos (poucas processam juntas) e teto de memória dos envios em andamento; os números e o porquê estão em docs/upload-de-imagens.md. */
+export const imageQueue = new ImageQueue(env.UPLOAD_CONCURRENCY);
+export const uploadMemory = new MemoryBudget(env.UPLOAD_QUEUE_MB * 1024 * 1024);
+const MAX_REQUEST_BYTES = 8 * 15 * 1024 * 1024;
+
+/** Antes de ler o corpo: reserva a memória que o envio vai ocupar (pelo Content-Length) e libera quando a resposta termina. */
+export const reserveUploadMemory: RequestHandler = (req, res, next) => {
+  const declared = Number(req.get("content-length"));
+  const bytes = Number.isFinite(declared) && declared > 0 ? Math.min(declared, MAX_REQUEST_BYTES) : MAX_REQUEST_BYTES;
+  const release = uploadMemory.reserve(bytes);
+  res.on("close", release);
+  next();
+};
+
+/** Identificador do envio, mandado pelo painel para ele perguntar "quantas fotos estão na minha frente?". */
+const ownerOf = (req: { get(name: string): string | undefined }) => {
+  const id = req.get("x-upload-id");
+  return id && /^[\w-]{8,64}$/.test(id) ? id : randomUUID();
+};
 
 const allowed = new Set(["image/jpeg", "image/png", "image/webp", "image/avif", "image/gif"]);
 
@@ -67,14 +88,21 @@ export const videoHandlers: RequestHandler[] = [
 
 uploadsRouter.post("/video", requireAdmin, ...videoHandlers);
 
-uploadsRouter.post("/", requireAdmin, upload.array("files", 8), async (req, res) => {
+/** Situação da fila de fotos; `?id=` é o identificador do envio de quem pergunta (ver `x-upload-id`). */
+uploadsRouter.get("/queue", requireAdmin, (req, res) => {
+  const id = typeof req.query.id === "string" ? req.query.id : undefined;
+  res.json(imageQueue.status(id));
+});
+
+uploadsRouter.post("/", requireAdmin, reserveUploadMemory, upload.array("files", 8), async (req, res) => {
   const files = (req.files as Express.Multer.File[] | undefined) ?? [];
   if (files.length === 0) throw new AppError("Nenhum arquivo enviado", 400);
+  const owner = ownerOf(req);
   try {
-    const urls = [];
-    for (const file of files) urls.push(await saveImage(file.buffer, uploadDir, file.mimetype === "image/gif")); // uma por vez: poupa memória
+    // todas entram na fila de uma vez (a ordem de chegada vale) e o resultado volta na ordem em que foram enviadas
+    const urls = await Promise.all(files.map((file) => imageQueue.run(owner, () => saveImage(file.buffer, uploadDir, file.mimetype === "image/gif"))));
     res.status(201).json({ urls });
-  } catch {
-    throw new AppError("Não foi possível ler uma das imagens. Se for um GIF, ele pode ter quadros demais ou ser grande demais: reduza as dimensões ou a duração e tente de novo.", 400);
+  } catch (error) {
+    throw new AppError(imageLimitMessage(error) ?? "Não foi possível ler uma das imagens. Se for um GIF, ele pode ter quadros demais ou ser grande demais: reduza as dimensões ou a duração e tente de novo.", 400);
   }
 });

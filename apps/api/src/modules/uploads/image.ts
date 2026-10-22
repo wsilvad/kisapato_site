@@ -7,19 +7,38 @@ import sharp from "sharp";
 export const MAIN_SIZE = 1600;
 export const THUMB_SIZE = 420;
 
+/**
+ * Memória: sem cache interno e com um fio só por operação. O que decide o pico é quantas fotos processam juntas (ver
+ * upload-queue.ts), não a velocidade de uma foto: o custo é ~10% de tempo por imagem, imperceptível num envio.
+ */
+sharp.cache(false);
+sharp.concurrency(1);
+
+/** Foto estática acima disso é recusada antes de ser lida (PNG/WebP de poucos KB podem esconder centenas de megapixels). */
+export const MAX_PIXELS = 100_000_000;
+
+/** Mensagem clara para o usuário quando o `sharp` recusa a imagem por tamanho; `null` para qualquer outro erro. */
+export function imageLimitMessage(error: unknown) {
+  return error instanceof Error && /pixel limit/i.test(error.message)
+    ? `Uma das imagens é grande demais (o máximo é ${MAX_PIXELS / 1_000_000} megapixels, bem acima de uma foto de celular). Reduza as dimensões e tente de novo.`
+    : null;
+}
+
 const jpeg = (quality: number) => ({ quality, mozjpeg: true, progressive: true }) as const;
 
 /**
  * Gera as duas versões de uma foto: respeita a rotação gravada pelo celular (EXIF), limita o lado maior a
  * MAIN_SIZE (sem ampliar fotos pequenas) e faz uma miniatura quadrada. PNG/WebP com fundo transparente ganham
- * fundo branco, já que a saída é JPEG.
+ * fundo branco, já que a saída é JPEG. A foto original é lida uma vez só: a miniatura sai da versão principal já reduzida.
  */
 export async function renderVersions(input: Buffer | string) {
-  const base = () => sharp(input, { failOn: "error" }).rotate().flatten({ background: "#ffffff" });
-  const [main, thumb] = await Promise.all([
-    base().resize({ width: MAIN_SIZE, height: MAIN_SIZE, fit: "inside", withoutEnlargement: true }).jpeg(jpeg(82)).toBuffer(),
-    base().resize({ width: THUMB_SIZE, height: THUMB_SIZE, fit: "cover" }).jpeg(jpeg(78)).toBuffer(),
-  ]);
+  const main = await sharp(input, { failOn: "error", limitInputPixels: MAX_PIXELS })
+    .rotate()
+    .flatten({ background: "#ffffff" })
+    .resize({ width: MAIN_SIZE, height: MAIN_SIZE, fit: "inside", withoutEnlargement: true })
+    .jpeg(jpeg(82))
+    .toBuffer();
+  const thumb = await sharp(main).resize({ width: THUMB_SIZE, height: THUMB_SIZE, fit: "cover" }).jpeg(jpeg(78)).toBuffer();
   return { main, thumb };
 }
 

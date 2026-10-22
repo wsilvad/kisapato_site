@@ -12,6 +12,10 @@ const envSchema = z.object({
   JWT_EXPIRES_IN: z.string().default("7d"),
   /** Pasta onde as fotos enviadas pelo admin são gravadas (na Discloud, um caminho dentro do app). */
   UPLOAD_DIR: z.string().default("uploads"),
+  /** Fotos processadas ao mesmo tempo. 1 é o medido como seguro: com 2, WebP grande chegou a 5× o pico (ver docs/upload-de-imagens.md). */
+  UPLOAD_CONCURRENCY: z.coerce.number().int().min(1).max(4).default(1),
+  /** Megabytes de fotos que podem estar na memória (processando ou esperando na fila); acima disso o envio é recusado com 429. */
+  UPLOAD_QUEUE_MB: z.coerce.number().int().min(20).max(1000).default(300),
   /**
    * Chave (32 bytes em base64) que cifra o segredo da verificação em duas etapas no banco. Gere com
    * `openssl rand -base64 32` e guarde só nas variáveis do servidor. Em desenvolvimento, se faltar, deriva do JWT_SECRET;

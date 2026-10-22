@@ -1988,6 +1988,7 @@ tr.is-issue td { background: #fffaf0; }
 .erp-toast { position: fixed; right: 16px; bottom: 16px; z-index: 60; width: min(360px, calc(100vw - 32px)); padding: 14px 16px; border-radius: 8px; background: var(--ink); color: #fff; font-size: 14px; line-height: 1.5; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2); }
 .erp-toast p { margin: 0; }
 .erp-toast.is-error { background: #7a1c1c; }
+.upload-toast { right: auto; left: 16px; }
 .erp-toast-actions { display: flex; gap: 16px; margin-top: 8px; }
 .erp-toast-actions a, .erp-toast-actions .link-btn { color: #fff; text-decoration: underline; }
 @media (max-width: 900px) { .erp-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); } }

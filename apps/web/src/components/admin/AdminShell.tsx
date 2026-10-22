@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { AdminHeader } from "@/components/admin/AdminHeader";
+import { UploadQueueNotice } from "@/components/admin/UploadQueueNotice";
 import { can } from "@/lib/permissions";
 
 export const ADMIN_MENU: { href: string; label: string; group?: string; perm: string }[] = [
@@ -45,6 +46,7 @@ export function AdminShell({ permissions, onSignOut, children }: { permissions: 
   return (
     <>
       <AdminHeader onSignOut={onSignOut} />
+      <UploadQueueNotice />
       <div className="admin-shell">
         <aside className="admin-side">
           <nav aria-label="Administração">

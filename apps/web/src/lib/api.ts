@@ -1,5 +1,6 @@
 import { getAdminToken } from "@/lib/admin-session";
 import { trackApiError, trackingHeaders } from "@/lib/track";
+import { watchUploadQueue, type UploadQueueStatus } from "@/lib/upload-queue";
 import type { AdminStats, Address, Audience, Brand, Campaign, Capabilities, Category, CustomerStat, DashFilters, ErpIssue, ErpRefreshStatus, Facets, Inventory, Order, Overview, Paginated, Product, ProductClass, SavedCard, ShippingQuote, Showcase, PanelUser, SiteSettings, StockMovement, Story, User } from "@/types/product";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3333/api";
@@ -242,10 +243,17 @@ export const api = {
       form.append("file", file);
       return request<{ url: string }>("/admin/uploads/video", { method: "POST", body: form });
     },
+    /** Envia fotos. O identificador do envio deixa o painel avisar quando há uma fila de fotos de outros envios na frente. */
     async upload(files: FileList | File[]) {
       const form = new FormData();
       for (const file of files) form.append("files", file);
-      return request<{ urls: string[] }>("/admin/uploads", { method: "POST", body: form });
+      const id = crypto.randomUUID();
+      const stop = watchUploadQueue(id, files.length, () => request<UploadQueueStatus>(`/admin/uploads/queue?id=${id}`));
+      try {
+        return await request<{ urls: string[] }>("/admin/uploads", { method: "POST", body: form, headers: { "X-Upload-Id": id } });
+      } finally {
+        stop();
+      }
     },
   },
 };
